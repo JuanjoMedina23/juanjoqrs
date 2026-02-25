@@ -27,6 +27,11 @@
     },
     "plugins": [
       "expo-router",
+      "expo-camera",
+        {
+          "recordAudioPermission": false,
+          "cameraPermission": "Otorga permiso para que la app pueda usar la camara :)"
+        },
       [
         "expo-splash-screen",
         {
