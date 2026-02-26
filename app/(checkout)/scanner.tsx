@@ -1,11 +1,14 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import React, { useState } from "react";
 import { Alert, Button, StyleSheet, Text, View } from "react-native";
+//importacion para un feedback haptico
+import *as Haptics from "expo-haptics";
 
 export function QrScanner(){
     const [Escaneado, SetEscaneo] = useState(false);
 
     const handleBarcodeScanned = ({type,data})=>{
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         SetEscaneo(true);
         Alert.alert(
             "Si se escaneo xd",
