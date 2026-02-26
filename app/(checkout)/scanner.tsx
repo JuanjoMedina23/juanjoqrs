@@ -29,7 +29,7 @@ export function QrScanner(){
         />
         {Escaneado && (
             <View style={estilos.overlay}>
-                <Text style={estilos.text}> Escaneando...  </Text>
+                <Text style={estilos.text}>Escaneando...</Text>
             </View>
         )
         }
