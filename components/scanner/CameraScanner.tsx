@@ -5,9 +5,10 @@ import { useFocusEffect } from "expo-router";
 
 type Props = {
   onDataDetected: (data: string) => void;
+  disabled?: boolean;
 };
 
-export const CameraScanner = ({ onDataDetected }: Props) => {
+export const CameraScanner = ({ onDataDetected, disabled=false }: Props) => {
   const [detectado, setDetectado] = useState(false);
   const [frameLayout, setFrameLayout] =
     useState<LayoutRectangle | null>(null);
@@ -26,7 +27,7 @@ export const CameraScanner = ({ onDataDetected }: Props) => {
 
     const { data, bounds } = result;
 
-    // En Android a veces no viene bounds
+   
     if (!bounds?.origin || !bounds?.size) return;
 
     const { origin, size } = bounds;
@@ -57,7 +58,7 @@ export const CameraScanner = ({ onDataDetected }: Props) => {
     <View style={{ flex: 1 }}>
       <CameraView
         style={StyleSheet.absoluteFillObject}
-        onBarcodeScanned={handlerBarcodeScanner}
+        onBarcodeScanned={disabled ? undefined : handlerBarcodeScanner}
         barcodeScannerSettings={{
           barcodeTypes: ["qr", "ean13"],
         }}
