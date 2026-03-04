@@ -1,15 +1,20 @@
-import { Text, View } from "react-native";
+import { router } from "expo-router";
+import { HomeView } from "../components/home/HomeScreen";
 
 export default function Index() {
+
+  const handleGoToScanner = () => {
+    router.push("/(checkout)/scanner");
+  };
+
+  const handleOpenSettings = () => {
+    router.push("/settings");
+  };
+
   return (
-    <View
-      style={{
-        flex: 1,
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <Text>Edit app/index.tsx to edit this screen.</Text>
-    </View>
+    <HomeView
+      onScanPress={handleGoToScanner}
+      onSettingsPress={handleOpenSettings}
+    />
   );
 }

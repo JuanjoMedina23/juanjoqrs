@@ -1,6 +1,6 @@
 import {Audio} from "expo-av";
 
-async function SonidoVerificacion (){
+export async function SonidoVerificacion (){
     const {sound} = await Audio.Sound.createAsync(
         require('../../../assets/SonidoVerificacion.mp3')
     );

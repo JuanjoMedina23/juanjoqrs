@@ -27,11 +27,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-camera",
+      [
+        "expo-camera",
         {
           "recordAudioPermission": false,
           "cameraPermission": "Otorga permiso para que la app pueda usar la camara :)"
-        },
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -43,7 +45,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
