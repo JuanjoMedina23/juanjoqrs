@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Home, Wallet } from "lucide-react-native";
+import { Home, Wallet, Map } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 const PRIMARY = "#6C63FF";
@@ -51,6 +51,13 @@ export default function TabsLayout() {
         options={{
           title: "Wallet",
           tabBarIcon: ({ color, size }) => <Wallet size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: "Mapa",
+          tabBarIcon: ({ color, size }) => <Map size={size} color={color} />,
         }}
       />
     </Tabs>
