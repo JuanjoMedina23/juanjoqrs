@@ -46,7 +46,14 @@ export function useAuth() {
     const {
       data: { session },
       error,
-    } = await supabase.auth.signUp({ email, password });
+    } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo:
+          "https://hfqz3zm-anonymous-8081.exp.direct/confirm",
+      },
+    });
     if (error) throw error;
     return session;
   };
