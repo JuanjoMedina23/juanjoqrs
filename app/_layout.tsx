@@ -1,17 +1,6 @@
 import { Stack } from "expo-router";
 import { ThemeProvider } from "@/context/ThemeContext";
-import * as Notifications from "expo-notifications";
-import { useEffect } from "react";
-import { Platform } from "react-native";
-
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+import { CheckoutProvider } from "@/context/CheckoutContext";
 
 export default function RootLayout() {
   useEffect(() => {
@@ -36,7 +25,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <CheckoutProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </CheckoutProvider>
     </ThemeProvider>
   );
 }
