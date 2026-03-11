@@ -41,7 +41,7 @@ export default function PaymentScreen() {
     }
   };
 
-  const handleBack = () => router.replace("/(tabs)/index");
+  const handleBack = () => router.replace("/");
   const handleGoWallet = () => router.replace("/(tabs)/wallet");
 
   const s = styles(theme);
