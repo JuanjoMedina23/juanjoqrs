@@ -6,9 +6,10 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
-import { Wallet, ArrowDownCircle, ArrowUpCircle, Plus } from "lucide-react-native";
+import { Wallet, ArrowDownCircle, ArrowUpCircle, Plus, BarChart2 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
-import { useCheckout, Transaction } from "@/lib/modules/useCheckout";
+import { useCheckout, Transaction } from "@/context/CheckoutContext";
+import { router } from "expo-router";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
@@ -16,7 +17,6 @@ const TEXT_SECONDARY = "#64748b";
 export default function WalletScreen() {
   const { theme } = useTheme();
   const { balance, history, loading, topUp, TOPUP_AMOUNT } = useCheckout();
-
   const s = styles(theme);
 
   const formatDate = (iso: string) => {
@@ -68,10 +68,19 @@ export default function WalletScreen() {
           <Text style={s.balanceLabel}>Saldo disponible</Text>
         </View>
         <Text style={s.balanceAmount}>${balance.toFixed(2)}</Text>
-        <TouchableOpacity style={s.topupBtn} onPress={topUp}>
-          <Plus size={16} color={PRIMARY} />
-          <Text style={s.topupText}>Recargar ${TOPUP_AMOUNT}</Text>
-        </TouchableOpacity>
+        <View style={s.cardActions}>
+          <TouchableOpacity style={s.topupBtn} onPress={topUp}>
+            <Plus size={16} color={PRIMARY} />
+            <Text style={s.topupText}>Recargar ${TOPUP_AMOUNT}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.statsBtn}
+            onPress={() => router.push("/(tabs)/stats")}
+          >
+            <BarChart2 size={16} color="#fff" />
+            <Text style={s.statsBtnText}>Estadísticas</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={s.historySection}>
@@ -133,18 +142,36 @@ const styles = (theme: any) =>
       letterSpacing: -2,
       marginBottom: 20,
     },
+    cardActions: {
+      flexDirection: "row",
+      gap: 10,
+      alignItems: "center",
+    },
     topupBtn: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
       backgroundColor: "#fff",
-      alignSelf: "flex-start",
       paddingHorizontal: 16,
       paddingVertical: 10,
       borderRadius: 12,
     },
     topupText: {
       color: PRIMARY,
+      fontWeight: "700",
+      fontSize: 14,
+    },
+    statsBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: "rgba(255,255,255,0.2)",
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 12,
+    },
+    statsBtnText: {
+      color: "#fff",
       fontWeight: "700",
       fontSize: 14,
     },

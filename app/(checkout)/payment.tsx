@@ -9,7 +9,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router";
 import { CheckCircle, XCircle, ArrowLeft, Wallet } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
-import { useCheckout } from "@/lib/modules/useCheckout";
+import { useCheckout } from "@/context/CheckoutContext";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";

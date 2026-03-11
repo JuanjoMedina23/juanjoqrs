@@ -35,6 +35,12 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="stats"
+        options={{
+        href: null, // oculta del tab bar, solo accesible desde wallet
+        }}
+       />
+      <Tabs.Screen
         name="wallet"
         options={{
           title: "Wallet",
