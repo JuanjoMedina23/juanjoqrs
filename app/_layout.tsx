@@ -24,6 +24,26 @@ function RootNavigator() {
 }
 
 export default function RootLayout() {
+  useEffect(() => {
+    const setupNotifications = async () => {
+      // 📱 Pedir permisos
+      await Notifications.requestPermissionsAsync();
+
+      // 🤖 Android necesita canal
+      if (Platform.OS === "android") {
+        await Notifications.setNotificationChannelAsync("default", {
+          name: "default",
+          importance: Notifications.AndroidImportance.MAX,
+          sound: "default",
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: "#2196F3",
+        });
+      }
+    };
+
+    setupNotifications();
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>

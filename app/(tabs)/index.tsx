@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { HomeView } from "../components/home/HomeScreen";
+import { HomeView } from "../../components/home/HomeScreen";
 
 export default function Index() {
 
