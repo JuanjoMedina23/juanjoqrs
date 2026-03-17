@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  Animated,
+  Dimensions,
 } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { CheckCircle, XCircle, ArrowLeft, Wallet } from "lucide-react-native";
@@ -15,8 +17,23 @@ import * as Notifications from "expo-notifications";
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
 const BORDER = "#e2e8f0";
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+
+const CONFETTI_COLORS = ["#6C63FF", "#22C55E", "#F59E0B", "#EF4444", "#3B82F6", "#EC4899"];
+const CONFETTI_COUNT = 60;
 
 type Status = "confirming" | "loading" | "success" | "error";
+
+interface ConfettiPiece {
+  id: number;
+  x: Animated.Value;
+  y: Animated.Value;
+  rotation: Animated.Value;
+  opacity: Animated.Value;
+  color: string;
+  size: number;
+  startX: number;
+}
 
 async function sendPaymentNotification(amount: number, newBalance: number) {
   await Notifications.scheduleNotificationAsync({
@@ -27,6 +44,60 @@ async function sendPaymentNotification(amount: number, newBalance: number) {
     },
     trigger: null,
   });
+}
+
+function useConfetti(active: boolean) {
+  const pieces = useRef<ConfettiPiece[]>(
+    Array.from({ length: CONFETTI_COUNT }, (_, i) => ({
+      id: i,
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      rotation: new Animated.Value(0),
+      opacity: new Animated.Value(1),
+      color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
+      size: Math.random() * 8 + 6,
+      startX: Math.random() * SCREEN_WIDTH,
+    }))
+  ).current;
+
+  useEffect(() => {
+    if (!active) return;
+
+    pieces.forEach((p) => {
+      p.x.setValue(p.startX);
+      p.y.setValue(-20);
+      p.rotation.setValue(0);
+      p.opacity.setValue(1);
+
+      Animated.parallel([
+        Animated.timing(p.y, {
+          toValue: SCREEN_HEIGHT + 50,
+          duration: 2000 + Math.random() * 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(p.x, {
+          toValue: p.startX + (Math.random() - 0.5) * 200,
+          duration: 2000 + Math.random() * 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(p.rotation, {
+          toValue: Math.random() * 720 - 360,
+          duration: 2000 + Math.random() * 1000,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.delay(1500),
+          Animated.timing(p.opacity, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start();
+    });
+  }, [active]);
+
+  return pieces;
 }
 
 export default function PaymentScreen() {
@@ -40,6 +111,8 @@ export default function PaymentScreen() {
 
   const amount = parseFloat(code ?? "");
   const isValidAmount = !isNaN(amount) && amount > 0;
+
+  const confettiPieces = useConfetti(status === "success");
 
   const handlePay = async () => {
     setStatus("loading");
@@ -72,11 +145,9 @@ export default function PaymentScreen() {
             <Wallet size={16} color={TEXT_SECONDARY} />
             <Text style={s.balanceText}>Saldo disponible: ${balance.toFixed(2)}</Text>
           </View>
-
           {!isValidAmount && (
             <Text style={s.errorText}>Este QR no contiene un monto válido.</Text>
           )}
-
           <TouchableOpacity
             style={[s.btn, s.btnPrimary, !isValidAmount && s.btnDisabled]}
             onPress={handlePay}
@@ -84,7 +155,6 @@ export default function PaymentScreen() {
           >
             <Text style={s.btnPrimaryText}>Confirmar pago</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={handleBack}>
             <ArrowLeft size={16} color={theme.text} />
             <Text style={[s.btnSecondaryText, { color: theme.text }]}>Cancelar</Text>
@@ -106,12 +176,38 @@ export default function PaymentScreen() {
   if (status === "success") {
     return (
       <View style={s.container}>
+        {/* Confetti */}
+        <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+          {confettiPieces.map((p) => (
+            <Animated.View
+              key={p.id}
+              style={{
+                position: "absolute",
+                width: p.size,
+                height: p.size,
+                backgroundColor: p.color,
+                borderRadius: p.size / 4,
+                transform: [
+                  { translateX: p.x },
+                  { translateY: p.y },
+                  {
+                    rotate: p.rotation.interpolate({
+                      inputRange: [-360, 360],
+                      outputRange: ["-360deg", "360deg"],
+                    }),
+                  },
+                ],
+                opacity: p.opacity,
+              }}
+            />
+          ))}
+        </View>
+
         <View style={s.card}>
           <CheckCircle size={64} color="#22C55E" />
           <Text style={s.successTitle}>¡Pago exitoso!</Text>
           <Text style={s.amount}>${amount.toFixed(2)}</Text>
           <Text style={s.balanceText}>Nuevo saldo: ${newBalance.toFixed(2)}</Text>
-
           <TouchableOpacity
             style={[s.btn, s.btnPrimary, { marginTop: 24 }]}
             onPress={handleGoWallet}
@@ -119,7 +215,6 @@ export default function PaymentScreen() {
             <Wallet size={16} color="#fff" />
             <Text style={s.btnPrimaryText}>Ver wallet</Text>
           </TouchableOpacity>
-
           <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={handleBack}>
             <Text style={[s.btnSecondaryText, { color: theme.text }]}>
               Volver al inicio
@@ -136,14 +231,12 @@ export default function PaymentScreen() {
         <XCircle size={64} color="#EF4444" />
         <Text style={s.errorTitle}>Pago fallido</Text>
         <Text style={s.errorText}>{errorMsg}</Text>
-
         <TouchableOpacity
           style={[s.btn, s.btnPrimary, { marginTop: 24 }]}
           onPress={() => setStatus("confirming")}
         >
           <Text style={s.btnPrimaryText}>Reintentar</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={[s.btn, s.btnSecondary]} onPress={handleBack}>
           <Text style={[s.btnSecondaryText, { color: theme.text }]}>
             Volver al inicio
@@ -176,41 +269,13 @@ const styles = (theme: any) =>
       shadowRadius: 12,
       shadowOffset: { width: 0, height: 4 },
     },
-    label: {
-      fontSize: 14,
-      color: TEXT_SECONDARY,
-      fontWeight: "500",
-    },
-    amount: {
-      fontSize: 48,
-      fontWeight: "800",
-      color: theme.text,
-      letterSpacing: -1,
-    },
-    balanceRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
-    },
-    balanceText: {
-      fontSize: 14,
-      color: TEXT_SECONDARY,
-    },
-    successTitle: {
-      fontSize: 22,
-      fontWeight: "700",
-      color: "#22C55E",
-    },
-    errorTitle: {
-      fontSize: 22,
-      fontWeight: "700",
-      color: "#EF4444",
-    },
-    errorText: {
-      fontSize: 14,
-      color: "#EF4444",
-      textAlign: "center",
-    },
+    label: { fontSize: 14, color: TEXT_SECONDARY, fontWeight: "500" },
+    amount: { fontSize: 48, fontWeight: "800", color: theme.text, letterSpacing: -1 },
+    balanceRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+    balanceText: { fontSize: 14, color: TEXT_SECONDARY },
+    successTitle: { fontSize: 22, fontWeight: "700", color: "#22C55E" },
+    errorTitle: { fontSize: 22, fontWeight: "700", color: "#EF4444" },
+    errorText: { fontSize: 14, color: "#EF4444", textAlign: "center" },
     btn: {
       width: "100%",
       flexDirection: "row",
@@ -220,23 +285,9 @@ const styles = (theme: any) =>
       paddingVertical: 14,
       borderRadius: 14,
     },
-    btnPrimary: {
-      backgroundColor: PRIMARY,
-    },
-    btnPrimaryText: {
-      color: "#fff",
-      fontWeight: "700",
-      fontSize: 16,
-    },
-    btnSecondary: {
-      borderWidth: 1,
-      borderColor: BORDER,
-    },
-    btnSecondaryText: {
-      fontWeight: "600",
-      fontSize: 15,
-    },
-    btnDisabled: {
-      opacity: 0.4,
-    },
+    btnPrimary: { backgroundColor: PRIMARY },
+    btnPrimaryText: { color: "#fff", fontWeight: "700", fontSize: 16 },
+    btnSecondary: { borderWidth: 1, borderColor: BORDER },
+    btnSecondaryText: { fontWeight: "600", fontSize: 15 },
+    btnDisabled: { opacity: 0.4 },
   });

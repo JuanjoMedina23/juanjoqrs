@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
+import { useAuthContext } from "@/context/AuthContext";
 
 export interface Transaction {
   id: string;
@@ -10,8 +11,6 @@ export interface Transaction {
   code: string;
 }
 
-const STORAGE_KEY_BALANCE = "wallet_balance";
-const STORAGE_KEY_HISTORY = "wallet_history";
 const INITIAL_BALANCE = 67000;
 const TOPUP_AMOUNT = 100;
 
@@ -39,11 +38,22 @@ async function sendTopUpNotification(amount: number, newBalance: number) {
 }
 
 export function CheckoutProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuthContext();
+  const userId = user?.id ?? "guest";
+
+  const STORAGE_KEY_BALANCE = `wallet_balance_${userId}`;
+  const STORAGE_KEY_HISTORY = `wallet_history_${userId}`;
+
   const [balance, setBalance] = useState<number>(INITIAL_BALANCE);
   const [history, setHistory] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Recargar datos cuando cambia el usuario
   useEffect(() => {
+    setLoading(true);
+    setBalance(INITIAL_BALANCE);
+    setHistory([]);
+
     const load = async () => {
       try {
         const [storedBalance, storedHistory] = await Promise.all([
@@ -59,7 +69,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       }
     };
     load();
-  }, []);
+  }, [userId]);
 
   const topUp = useCallback(async () => {
     const newBalance = balance + TOPUP_AMOUNT;
@@ -80,7 +90,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       AsyncStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory)),
       sendTopUpNotification(TOPUP_AMOUNT, newBalance),
     ]);
-  }, [balance, history]);
+  }, [balance, history, STORAGE_KEY_BALANCE, STORAGE_KEY_HISTORY]);
 
   const pay = useCallback(
     async (code: string): Promise<{ success: boolean; error?: string }> => {
@@ -114,14 +124,14 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
 
       return { success: true };
     },
-    [balance, history]
+    [balance, history, STORAGE_KEY_BALANCE, STORAGE_KEY_HISTORY]
   );
 
   const clearAll = useCallback(async () => {
     setBalance(INITIAL_BALANCE);
     setHistory([]);
     await AsyncStorage.multiRemove([STORAGE_KEY_BALANCE, STORAGE_KEY_HISTORY]);
-  }, []);
+  }, [STORAGE_KEY_BALANCE, STORAGE_KEY_HISTORY]);
 
   return (
     <CheckoutContext.Provider

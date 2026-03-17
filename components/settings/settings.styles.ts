@@ -6,8 +6,6 @@ export const createStyles = (theme: ThemeType) =>
     container: {
       flex: 1,
       backgroundColor: theme.background,
-      padding: 24,
-      justifyContent: "center",
     },
 
     title: {
@@ -46,21 +44,23 @@ export const createStyles = (theme: ThemeType) =>
     header: {
       flexDirection: "row",
       alignItems: "center",
-      marginBottom: 40,
+      marginBottom: 24,
+      paddingHorizontal: 20,
+      paddingTop: 60,
     },
-    
+
     backButton: {
       padding: 8,
       marginRight: 12,
       borderRadius: 10,
     },
-    
+
     headerTitle: {
       fontSize: 20,
       fontWeight: "700",
       color: theme.text,
     },
-    
+
     content: {
       flex: 1,
     },

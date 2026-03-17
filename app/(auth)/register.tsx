@@ -7,6 +7,7 @@ export default function RegisterScreen() {
   return (
     <RegisterView
       onNavigateToLogin={() => router.push("/(auth)/login")}
+      onRegisterSuccess={() => router.replace("/(auth)/onboarding")}
     />
   );
 }

@@ -15,9 +15,10 @@ import { createAuthStyles } from "./auth.styles";
 
 type Props = {
   onNavigateToLogin: () => void;
+  onRegisterSuccess?: () => void;
 };
 
-export default function RegisterView({ onNavigateToLogin }: Props) {
+export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: Props) {
   const { signUp } = useAuthContext();
   const { theme } = useTheme();
   const styles = createAuthStyles(theme);
@@ -49,6 +50,8 @@ export default function RegisterView({ onNavigateToLogin }: Props) {
       const session = await signUp(email.trim(), password);
       if (!session) {
         setSuccess("¡Revisa tu correo para verificar tu cuenta!");
+      } else {
+        onRegisterSuccess?.();
       }
     } catch (err: any) {
       setError(err.message || "Error al registrarse.");

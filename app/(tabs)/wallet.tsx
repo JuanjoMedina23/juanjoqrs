@@ -4,12 +4,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   FlatList,
-  ActivityIndicator,
 } from "react-native";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Plus, BarChart2 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useCheckout, Transaction } from "@/context/CheckoutContext";
 import { router } from "expo-router";
+import { WalletSkeleton } from "@/components/wallet/SkeletonWallet";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
@@ -52,13 +52,7 @@ export default function WalletScreen() {
     );
   };
 
-  if (loading) {
-    return (
-      <View style={[s.container, { justifyContent: "center", alignItems: "center" }]}>
-        <ActivityIndicator size="large" color={PRIMARY} />
-      </View>
-    );
-  }
+  if (loading) return <WalletSkeleton />;
 
   return (
     <View style={s.container}>
