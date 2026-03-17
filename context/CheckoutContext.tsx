@@ -49,20 +49,8 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     load();
   }, []);
 
-  const persistBalance = async (newBalance: number) => {
-    await AsyncStorage.setItem(STORAGE_KEY_BALANCE, newBalance.toString());
-  };
-
-  const persistHistory = async (newHistory: Transaction[]) => {
-    await AsyncStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory));
-  };
-
   const topUp = useCallback(async () => {
-    setBalance((prev) => {
-      const newBalance = prev + TOPUP_AMOUNT;
-      persistBalance(newBalance);
-      return newBalance;
-    });
+    const newBalance = balance + TOPUP_AMOUNT;
     const tx: Transaction = {
       id: Date.now().toString(),
       amount: TOPUP_AMOUNT,
@@ -70,12 +58,16 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       date: new Date().toISOString(),
       code: "RECARGA",
     };
-    setHistory((prev) => {
-      const newHistory = [tx, ...prev];
-      persistHistory(newHistory);
-      return newHistory;
-    });
-  }, []);
+    const newHistory = [tx, ...history];
+
+    setBalance(newBalance);
+    setHistory(newHistory);
+
+    await Promise.all([
+      AsyncStorage.setItem(STORAGE_KEY_BALANCE, newBalance.toString()),
+      AsyncStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory)),
+    ]);
+  }, [balance, history]);
 
   const pay = useCallback(
     async (code: string): Promise<{ success: boolean; error?: string }> => {
@@ -97,18 +89,19 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
         date: new Date().toISOString(),
         code,
       };
+      const newHistory = [tx, ...history];
 
       setBalance(newBalance);
-      setHistory((prev) => {
-        const newHistory = [tx, ...prev];
-        persistHistory(newHistory);
-        return newHistory;
-      });
-      await persistBalance(newBalance);
+      setHistory(newHistory);
+
+      await Promise.all([
+        AsyncStorage.setItem(STORAGE_KEY_BALANCE, newBalance.toString()),
+        AsyncStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory)),
+      ]);
 
       return { success: true };
     },
-    [balance]
+    [balance, history]
   );
 
   const clearAll = useCallback(async () => {

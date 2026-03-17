@@ -1,7 +1,10 @@
 import { useEffect } from "react";
+import { Platform } from "react-native";
+import * as Notifications from "expo-notifications";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider, useAuthContext } from "@/context/AuthContext";
+import { CheckoutProvider } from "@/context/CheckoutContext";
 
 function RootNavigator() {
   const { session, loading } = useAuthContext();
@@ -11,12 +14,12 @@ function RootNavigator() {
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+    const inAuthGroup = segments.includes("(auth)");
 
     if (!session && !inAuthGroup) {
-      router.replace({ pathname: "/(auth)/login" });
+      router.replace("/(auth)/login");
     } else if (session && inAuthGroup) {
-      router.replace({ pathname: "/" });
+      router.replace("/");
     }
   }, [session, loading, segments]);
 
@@ -26,10 +29,8 @@ function RootNavigator() {
 export default function RootLayout() {
   useEffect(() => {
     const setupNotifications = async () => {
-      // 📱 Pedir permisos
       await Notifications.requestPermissionsAsync();
 
-      // 🤖 Android necesita canal
       if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("default", {
           name: "default",
@@ -47,7 +48,9 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <RootNavigator />
+        <CheckoutProvider>
+          <RootNavigator />
+        </CheckoutProvider>
       </AuthProvider>
     </ThemeProvider>
   );

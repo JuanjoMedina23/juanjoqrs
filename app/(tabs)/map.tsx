@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import { WebView } from "react-native-webview";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/context/ThemeContext";
@@ -20,7 +20,7 @@ const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
 const STORAGE_KEY = "map_markers";
 
-interface Marker {
+interface MarkerData {
   id: string;
   lat: number;
   lng: number;
@@ -32,18 +32,34 @@ type LocationState =
   | { status: "denied" }
   | { status: "ready"; lat: number; lng: number; city: string };
 
+const DARK_MAP_STYLE = [
+  { elementType: "geometry", stylers: [{ color: "#0f172a" }] },
+  { elementType: "labels.text.fill", stylers: [{ color: "#94a3b8" }] },
+  { elementType: "labels.text.stroke", stylers: [{ color: "#0f172a" }] },
+  { featureType: "road", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+  { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#0f172a" }] },
+  { featureType: "road.highway", elementType: "geometry", stylers: [{ color: "#334155" }] },
+  { featureType: "water", elementType: "geometry", stylers: [{ color: "#0c1a2e" }] },
+  { featureType: "poi", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+  { featureType: "poi.park", elementType: "geometry", stylers: [{ color: "#172032" }] },
+  { featureType: "transit", elementType: "geometry", stylers: [{ color: "#1e293b" }] },
+];
+
 export default function MapScreen() {
-  const { theme } = useTheme();
-  const webviewRef = useRef<WebView>(null);
+  const { theme, mode } = useTheme();
+  const mapRef = useRef<MapView>(null);
   const [location, setLocation] = useState<LocationState>({ status: "loading" });
-  const [markers, setMarkers] = useState<Marker[]>([]);
+  const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const s = styles(theme);
 
-  // Cargar marcadores persistidos
+  const isDark =
+    mode === "dark" ||
+    (mode === "normal" && theme.background === "#0f172a");
+
   useEffect(() => {
     const loadMarkers = async () => {
       try {
@@ -55,7 +71,7 @@ export default function MapScreen() {
     fetchLocation();
   }, []);
 
-  const saveMarkers = async (newMarkers: Marker[]) => {
+  const saveMarkers = async (newMarkers: MarkerData[]) => {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMarkers));
   };
 
@@ -73,7 +89,6 @@ export default function MapScreen() {
     setLocation({ status: "ready", lat: latitude, lng: longitude, city });
   };
 
-  // Añadir marcador desde el mapa (toque)
   const addMarkerFromMap = async (lat: number, lng: number) => {
     const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
     const label =
@@ -81,18 +96,12 @@ export default function MapScreen() {
         ? `${place.street}${place.streetNumber ? " " + place.streetNumber : ""}`
         : place?.city ?? place?.region ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
-    const newMarker: Marker = {
-      id: Date.now().toString(),
-      lat,
-      lng,
-      label,
-    };
+    const newMarker: MarkerData = { id: Date.now().toString(), lat, lng, label };
     const updated = [...markers, newMarker];
     setMarkers(updated);
     await saveMarkers(updated);
   };
 
-  // Buscar por nombre (Nominatim - OpenStreetMap, gratis)
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
     setSearching(true);
@@ -115,21 +124,17 @@ export default function MapScreen() {
     const lng = parseFloat(result.lon);
     const label = result.display_name.split(",").slice(0, 2).join(", ");
 
-    const newMarker: Marker = {
-      id: Date.now().toString(),
-      lat,
-      lng,
-      label,
-    };
+    const newMarker: MarkerData = { id: Date.now().toString(), lat, lng, label };
     const updated = [...markers, newMarker];
     setMarkers(updated);
     await saveMarkers(updated);
 
-    // Mover el mapa al resultado
-    webviewRef.current?.injectJavaScript(`
-      map.setView([${lat}, ${lng}], 16);
-      true;
-    `);
+    mapRef.current?.animateToRegion({
+      latitude: lat,
+      longitude: lng,
+      latitudeDelta: 0.01,
+      longitudeDelta: 0.01,
+    }, 600);
 
     setSearchQuery("");
     setSearchResults([]);
@@ -140,105 +145,7 @@ export default function MapScreen() {
     const updated = markers.filter((m) => m.id !== id);
     setMarkers(updated);
     await saveMarkers(updated);
-    // Quitar del mapa
-    webviewRef.current?.injectJavaScript(`
-      if (markerMap["${id}"]) {
-        map.removeLayer(markerMap["${id}"]);
-        delete markerMap["${id}"];
-      }
-      true;
-    `);
   };
-
-  // Mensajes desde el WebView (toque en mapa)
-  const onWebViewMessage = (event: any) => {
-    try {
-      const data = JSON.parse(event.nativeEvent.data);
-      if (data.type === "tap") {
-        addMarkerFromMap(data.lat, data.lng);
-      }
-    } catch (e) {}
-  };
-
-  // Sincronizar marcadores al WebView cuando cambian
-  useEffect(() => {
-    if (location.status !== "ready") return;
-    const markersJS = markers
-      .map(
-        (m) => `
-        (function() {
-          if (!markerMap["${m.id}"]) {
-            const mk = L.marker([${m.lat}, ${m.lng}], { icon: customIcon })
-              .addTo(map)
-              .bindPopup(\`<b>${m.label}</b>\`);
-            markerMap["${m.id}"] = mk;
-          }
-        })();
-      `
-      )
-      .join("\n");
-    webviewRef.current?.injectJavaScript(`${markersJS} true;`);
-  }, [markers, location.status]);
-
-  const getMapHTML = (lat: number, lng: number) => `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-      <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-      <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body, #map { width: 100%; height: 100%; }
-        .leaflet-popup-content-wrapper {
-          border-radius: 10px;
-          font-family: sans-serif;
-          font-size: 13px;
-        }
-      </style>
-    </head>
-    <body>
-      <div id="map"></div>
-      <script>
-        const markerMap = {};
-
-        const map = L.map('map', {
-          zoomControl: true,
-          attributionControl: false,
-        }).setView([${lat}, ${lng}], 15);
-
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-        }).addTo(map);
-
-        // Icono para ubicación actual
-        const selfIcon = L.divIcon({
-          html: \`<div style="width:18px;height:18px;background:${PRIMARY};border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>\`,
-          iconSize: [18, 18], iconAnchor: [9, 9], className: '',
-        });
-
-        // Icono para marcadores del usuario
-        const customIcon = L.divIcon({
-          html: \`<div style="width:18px;height:18px;background:#EF4444;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.3);"></div>\`,
-          iconSize: [18, 18], iconAnchor: [9, 9], className: '',
-        });
-
-        L.marker([${lat}, ${lng}], { icon: selfIcon })
-          .addTo(map)
-          .bindPopup('<b>Tu ubicación</b>');
-
-        // Enviar toque al RN
-        map.on('click', function(e) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({
-            type: 'tap',
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
-          }));
-        });
-      </script>
-    </body>
-    </html>
-  `;
 
   if (location.status === "loading") {
     return (
@@ -339,14 +246,33 @@ export default function MapScreen() {
       )}
 
       {/* Mapa */}
-      <WebView
-        ref={webviewRef}
+      <MapView
+        ref={mapRef}
         style={s.map}
-        source={{ html: getMapHTML(location.lat, location.lng) }}
-        onMessage={onWebViewMessage}
-        scrollEnabled={false}
-        bounces={false}
-      />
+        provider={PROVIDER_GOOGLE}
+        customMapStyle={isDark ? DARK_MAP_STYLE : []}
+        initialRegion={{
+          latitude: location.lat,
+          longitude: location.lng,
+          latitudeDelta: 0.01,
+          longitudeDelta: 0.01,
+        }}
+        showsUserLocation
+        showsMyLocationButton={false}
+        onLongPress={(e) => {
+          const { latitude, longitude } = e.nativeEvent.coordinate;
+          addMarkerFromMap(latitude, longitude);
+        }}
+      >
+        {markers.map((m) => (
+          <Marker
+            key={m.id}
+            coordinate={{ latitude: m.lat, longitude: m.lng }}
+            title={m.label}
+            pinColor="#EF4444"
+          />
+        ))}
+      </MapView>
 
       {/* Lista de marcadores */}
       {markers.length > 0 && (
@@ -360,9 +286,7 @@ export default function MapScreen() {
             renderItem={({ item }) => (
               <View style={s.markerChip}>
                 <MapPin size={12} color="#EF4444" />
-                <Text style={s.markerChipText} numberOfLines={1}>
-                  {item.label}
-                </Text>
+                <Text style={s.markerChipText} numberOfLines={1}>{item.label}</Text>
                 <TouchableOpacity onPress={() => deleteMarker(item.id)}>
                   <Trash2 size={12} color={TEXT_SECONDARY} />
                 </TouchableOpacity>
@@ -392,88 +316,43 @@ const styles = (theme: any) =>
     headerRight: { flexDirection: "row", gap: 8 },
     cityName: { fontSize: 20, fontWeight: "800", color: theme.text },
     iconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: 36, height: 36, borderRadius: 10,
       backgroundColor: theme.card,
-      justifyContent: "center",
-      alignItems: "center",
+      justifyContent: "center", alignItems: "center",
     },
-    // Search
     searchContainer: {
-      paddingHorizontal: 16,
-      paddingBottom: 8,
+      paddingHorizontal: 16, paddingBottom: 8,
       backgroundColor: theme.background,
     },
     searchRow: {
-      flexDirection: "row",
-      alignItems: "center",
+      flexDirection: "row", alignItems: "center",
       backgroundColor: theme.card,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
-      gap: 8,
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 8,
     },
-    searchInput: {
-      flex: 1,
-      fontSize: 15,
-      color: theme.text,
-    },
+    searchInput: { flex: 1, fontSize: 15, color: theme.text },
     resultsList: {
-      backgroundColor: theme.card,
-      borderRadius: 12,
-      marginTop: 6,
-      maxHeight: 200,
+      backgroundColor: theme.card, borderRadius: 12, marginTop: 6, maxHeight: 200,
     },
     resultItem: {
-      flexDirection: "row",
-      alignItems: "flex-start",
-      gap: 8,
-      padding: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: theme.background,
+      flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12,
+      borderBottomWidth: 1, borderBottomColor: theme.background,
     },
-    resultText: {
-      flex: 1,
-      fontSize: 13,
-      color: theme.text,
-    },
-    // Map
+    resultText: { flex: 1, fontSize: 13, color: theme.text },
     map: { flex: 1 },
-    // Markers list
-    markersList: {
-      paddingVertical: 12,
-      backgroundColor: theme.background,
-    },
+    markersList: { paddingVertical: 12, backgroundColor: theme.background },
     markerChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 6,
+      flexDirection: "row", alignItems: "center", gap: 6,
       backgroundColor: theme.card,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 20,
-      maxWidth: 180,
+      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, maxWidth: 180,
     },
-    markerChipText: {
-      flex: 1,
-      fontSize: 12,
-      color: theme.text,
-      fontWeight: "500",
-    },
-    // States
+    markerChipText: { flex: 1, fontSize: 12, color: theme.text, fontWeight: "500" },
     loadingText: { fontSize: 15, color: TEXT_SECONDARY, marginTop: 8 },
     deniedTitle: { fontSize: 18, fontWeight: "700", color: theme.text, marginTop: 8 },
     deniedText: { fontSize: 14, color: TEXT_SECONDARY, textAlign: "center" },
     retryBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: PRIMARY,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderRadius: 14,
-      marginTop: 8,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      backgroundColor: PRIMARY, paddingHorizontal: 20, paddingVertical: 12,
+      borderRadius: 14, marginTop: 8,
     },
     retryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   });
