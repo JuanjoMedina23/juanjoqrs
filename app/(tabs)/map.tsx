@@ -9,22 +9,35 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/context/ThemeContext";
-import { MapPin, RefreshCw, Search, Trash2, X } from "lucide-react-native";
+import { MapPin, RefreshCw, Search, Trash2, X, Star, Eye, Tag } from "lucide-react-native";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
 const STORAGE_KEY = "map_markers";
+
+type Category = "favorito" | "visitado" | "otro";
+
+const CATEGORIES: { key: Category; label: string; color: string; icon: any }[] = [
+  { key: "favorito", label: "Favorito", color: "#F59E0B", icon: Star },
+  { key: "visitado", label: "Visitado", color: "#22C55E", icon: Eye },
+  { key: "otro",     label: "Otro",     color: "#EF4444", icon: Tag },
+];
+
+const getCategoryColor = (cat: Category) =>
+  CATEGORIES.find((c) => c.key === cat)?.color ?? "#EF4444";
 
 interface MarkerData {
   id: string;
   lat: number;
   lng: number;
   label: string;
+  category: Category;
 }
 
 type LocationState =
@@ -54,6 +67,13 @@ export default function MapScreen() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [searching, setSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [filterCategory, setFilterCategory] = useState<Category | null>(null);
+
+  // Modal para nuevo marcador
+  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number; defaultLabel: string } | null>(null);
+  const [modalName, setModalName] = useState("");
+  const [modalCategory, setModalCategory] = useState<Category>("otro");
+
   const s = styles(theme);
 
   const isDark =
@@ -89,17 +109,33 @@ export default function MapScreen() {
     setLocation({ status: "ready", lat: latitude, lng: longitude, city });
   };
 
-  const addMarkerFromMap = async (lat: number, lng: number) => {
+  // Al hacer long press abre el modal con la dirección como nombre sugerido
+  const handleLongPress = async (lat: number, lng: number) => {
     const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-    const label =
+    const defaultLabel =
       place?.street
         ? `${place.street}${place.streetNumber ? " " + place.streetNumber : ""}`
         : place?.city ?? place?.region ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
 
-    const newMarker: MarkerData = { id: Date.now().toString(), lat, lng, label };
+    setModalName(defaultLabel);
+    setModalCategory("otro");
+    setPendingCoords({ lat, lng, defaultLabel });
+  };
+
+  const confirmAddMarker = async () => {
+    if (!pendingCoords) return;
+    const newMarker: MarkerData = {
+      id: Date.now().toString(),
+      lat: pendingCoords.lat,
+      lng: pendingCoords.lng,
+      label: modalName.trim() || pendingCoords.defaultLabel,
+      category: modalCategory,
+    };
     const updated = [...markers, newMarker];
     setMarkers(updated);
     await saveMarkers(updated);
+    setPendingCoords(null);
+    setModalName("");
   };
 
   const handleSearch = async () => {
@@ -122,18 +158,15 @@ export default function MapScreen() {
   const selectSearchResult = async (result: any) => {
     const lat = parseFloat(result.lat);
     const lng = parseFloat(result.lon);
-    const label = result.display_name.split(",").slice(0, 2).join(", ");
+    const defaultLabel = result.display_name.split(",").slice(0, 2).join(", ");
 
-    const newMarker: MarkerData = { id: Date.now().toString(), lat, lng, label };
-    const updated = [...markers, newMarker];
-    setMarkers(updated);
-    await saveMarkers(updated);
+    setModalName(defaultLabel);
+    setModalCategory("otro");
+    setPendingCoords({ lat, lng, defaultLabel });
 
     mapRef.current?.animateToRegion({
-      latitude: lat,
-      longitude: lng,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
+      latitude: lat, longitude: lng,
+      latitudeDelta: 0.01, longitudeDelta: 0.01,
     }, 600);
 
     setSearchQuery("");
@@ -146,6 +179,10 @@ export default function MapScreen() {
     setMarkers(updated);
     await saveMarkers(updated);
   };
+
+  const filteredMarkers = filterCategory
+    ? markers.filter((m) => m.category === filterCategory)
+    : markers;
 
   if (location.status === "loading") {
     return (
@@ -161,9 +198,7 @@ export default function MapScreen() {
       <View style={[s.container, s.centered]}>
         <MapPin size={48} color={TEXT_SECONDARY} />
         <Text style={s.deniedTitle}>Permiso denegado</Text>
-        <Text style={s.deniedText}>
-          Necesitamos acceso a tu ubicación para mostrar el mapa.
-        </Text>
+        <Text style={s.deniedText}>Necesitamos acceso a tu ubicación para mostrar el mapa.</Text>
         <TouchableOpacity style={s.retryBtn} onPress={fetchLocation}>
           <RefreshCw size={16} color="#fff" />
           <Text style={s.retryText}>Reintentar</Text>
@@ -186,11 +221,7 @@ export default function MapScreen() {
         <View style={s.headerRight}>
           <TouchableOpacity
             style={s.iconBtn}
-            onPress={() => {
-              setShowSearch(!showSearch);
-              setSearchResults([]);
-              setSearchQuery("");
-            }}
+            onPress={() => { setShowSearch(!showSearch); setSearchResults([]); setSearchQuery(""); }}
           >
             <Search size={16} color={theme.text} />
           </TouchableOpacity>
@@ -198,6 +229,34 @@ export default function MapScreen() {
             <RefreshCw size={16} color={theme.text} />
           </TouchableOpacity>
         </View>
+      </View>
+
+      {/* Filtros de categoría */}
+      <View style={s.filterRow}>
+        <TouchableOpacity
+          style={[s.filterChip, filterCategory === null && { backgroundColor: PRIMARY }]}
+          onPress={() => setFilterCategory(null)}
+        >
+          <Text style={[s.filterChipText, filterCategory === null && { color: "#fff" }]}>
+            Todos
+          </Text>
+        </TouchableOpacity>
+        {CATEGORIES.map((cat) => {
+          const Icon = cat.icon;
+          const active = filterCategory === cat.key;
+          return (
+            <TouchableOpacity
+              key={cat.key}
+              style={[s.filterChip, active && { backgroundColor: cat.color }]}
+              onPress={() => setFilterCategory(active ? null : cat.key)}
+            >
+              <Icon size={12} color={active ? "#fff" : TEXT_SECONDARY} />
+              <Text style={[s.filterChipText, active && { color: "#fff" }]}>
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Buscador */}
@@ -220,9 +279,7 @@ export default function MapScreen() {
               </TouchableOpacity>
             )}
           </View>
-          {searching && (
-            <ActivityIndicator size="small" color={PRIMARY} style={{ marginTop: 8 }} />
-          )}
+          {searching && <ActivityIndicator size="small" color={PRIMARY} style={{ marginTop: 8 }} />}
           {searchResults.length > 0 && (
             <FlatList
               data={searchResults}
@@ -230,14 +287,9 @@ export default function MapScreen() {
               style={s.resultsList}
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={s.resultItem}
-                  onPress={() => selectSearchResult(item)}
-                >
+                <TouchableOpacity style={s.resultItem} onPress={() => selectSearchResult(item)}>
                   <MapPin size={14} color={PRIMARY} />
-                  <Text style={s.resultText} numberOfLines={2}>
-                    {item.display_name}
-                  </Text>
+                  <Text style={s.resultText} numberOfLines={2}>{item.display_name}</Text>
                 </TouchableOpacity>
               )}
             />
@@ -261,31 +313,31 @@ export default function MapScreen() {
         showsMyLocationButton={false}
         onLongPress={(e) => {
           const { latitude, longitude } = e.nativeEvent.coordinate;
-          addMarkerFromMap(latitude, longitude);
+          handleLongPress(latitude, longitude);
         }}
       >
-        {markers.map((m) => (
+        {filteredMarkers.map((m) => (
           <Marker
             key={m.id}
             coordinate={{ latitude: m.lat, longitude: m.lng }}
             title={m.label}
-            pinColor="#EF4444"
+            pinColor={getCategoryColor(m.category)}
           />
         ))}
       </MapView>
 
       {/* Lista de marcadores */}
-      {markers.length > 0 && (
+      {filteredMarkers.length > 0 && (
         <View style={s.markersList}>
           <FlatList
-            data={markers}
+            data={filteredMarkers}
             keyExtractor={(m) => m.id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}
             renderItem={({ item }) => (
-              <View style={s.markerChip}>
-                <MapPin size={12} color="#EF4444" />
+              <View style={[s.markerChip, { borderLeftColor: getCategoryColor(item.category), borderLeftWidth: 3 }]}>
+                <MapPin size={12} color={getCategoryColor(item.category)} />
                 <Text style={s.markerChipText} numberOfLines={1}>{item.label}</Text>
                 <TouchableOpacity onPress={() => deleteMarker(item.id)}>
                   <Trash2 size={12} color={TEXT_SECONDARY} />
@@ -295,6 +347,69 @@ export default function MapScreen() {
           />
         </View>
       )}
+
+      {/* Modal nuevo marcador */}
+      <Modal
+  visible={pendingCoords !== null}
+  transparent
+  animationType="slide"
+  onRequestClose={() => setPendingCoords(null)}
+>
+  <KeyboardAvoidingView
+    style={{ flex: 1 }}
+    behavior={Platform.OS === "ios" ? "padding" : "height"}
+  >
+    <View style={s.modalOverlay}>
+      <View style={[s.modalCard, { backgroundColor: theme.card }]}>
+        <Text style={[s.modalTitle, { color: theme.text }]}>Nuevo marcador</Text>
+
+        <TextInput
+          style={[s.modalInput, { backgroundColor: theme.background, color: theme.text }]}
+          placeholder="Nombre del lugar"
+          placeholderTextColor={TEXT_SECONDARY}
+          value={modalName}
+          onChangeText={setModalName}
+          autoFocus
+        />
+
+        <Text style={[s.modalLabel, { color: TEXT_SECONDARY }]}>Categoría</Text>
+        <View style={s.categoryRow}>
+          {CATEGORIES.map((cat) => {
+            const Icon = cat.icon;
+            const active = modalCategory === cat.key;
+            return (
+              <TouchableOpacity
+                key={cat.key}
+                style={[s.categoryBtn, active && { backgroundColor: cat.color }]}
+                onPress={() => setModalCategory(cat.key)}
+              >
+                <Icon size={16} color={active ? "#fff" : TEXT_SECONDARY} />
+                <Text style={[s.categoryBtnText, active && { color: "#fff" }]}>
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <View style={s.modalActions}>
+          <TouchableOpacity
+            style={[s.modalBtn, { backgroundColor: theme.background }]}
+            onPress={() => setPendingCoords(null)}
+          >
+            <Text style={[s.modalBtnText, { color: theme.text }]}>Cancelar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[s.modalBtn, { backgroundColor: PRIMARY }]}
+            onPress={confirmAddMarker}
+          >
+            <Text style={[s.modalBtnText, { color: "#fff" }]}>Guardar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  </KeyboardAvoidingView>
+</Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -304,12 +419,8 @@ const styles = (theme: any) =>
     container: { flex: 1, backgroundColor: theme.background },
     centered: { justifyContent: "center", alignItems: "center", gap: 12, padding: 32 },
     header: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      paddingHorizontal: 20,
-      paddingTop: 60,
-      paddingBottom: 14,
+      flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+      paddingHorizontal: 20, paddingTop: 60, paddingBottom: 14,
       backgroundColor: theme.background,
     },
     headerLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
@@ -320,6 +431,23 @@ const styles = (theme: any) =>
       backgroundColor: theme.card,
       justifyContent: "center", alignItems: "center",
     },
+    filterRow: {
+      flexDirection: "row",
+      gap: 8,
+      paddingHorizontal: 16,
+      paddingBottom: 10,
+      backgroundColor: theme.background,
+    },
+    filterChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 4,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 20,
+      backgroundColor: theme.card,
+    },
+    filterChipText: { fontSize: 12, fontWeight: "600", color: TEXT_SECONDARY },
     searchContainer: {
       paddingHorizontal: 16, paddingBottom: 8,
       backgroundColor: theme.background,
@@ -330,9 +458,7 @@ const styles = (theme: any) =>
       borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, gap: 8,
     },
     searchInput: { flex: 1, fontSize: 15, color: theme.text },
-    resultsList: {
-      backgroundColor: theme.card, borderRadius: 12, marginTop: 6, maxHeight: 200,
-    },
+    resultsList: { backgroundColor: theme.card, borderRadius: 12, marginTop: 6, maxHeight: 200 },
     resultItem: {
       flexDirection: "row", alignItems: "flex-start", gap: 8, padding: 12,
       borderBottomWidth: 1, borderBottomColor: theme.background,
@@ -355,4 +481,32 @@ const styles = (theme: any) =>
       borderRadius: 14, marginTop: 8,
     },
     retryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+    // Modal
+    modalOverlay: {
+      flex: 1,
+      justifyContent: "flex-end",
+    },
+    modalCard: {
+      borderTopLeftRadius: 24, borderTopRightRadius: 24,
+      padding: 24, gap: 14,
+    },
+    modalTitle: { fontSize: 18, fontWeight: "800" },
+    modalLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 0.5 },
+    modalInput: {
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
+      fontSize: 15,
+    },
+    categoryRow: { flexDirection: "row", gap: 10 },
+    categoryBtn: {
+      flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
+      gap: 6, paddingVertical: 10, borderRadius: 12,
+      backgroundColor: theme.background,
+    },
+    categoryBtnText: { fontSize: 13, fontWeight: "600", color: TEXT_SECONDARY },
+    modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
+    modalBtn: {
+      flex: 1, paddingVertical: 14, borderRadius: 14,
+      alignItems: "center",
+    },
+    modalBtnText: { fontWeight: "700", fontSize: 15 },
   });
