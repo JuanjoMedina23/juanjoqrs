@@ -6,6 +6,16 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider, useAuthContext } from "@/context/AuthContext";
 import { CheckoutProvider } from "@/context/CheckoutContext";
 
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
 function RootNavigator() {
   const { session, loading } = useAuthContext();
   const segments = useSegments();

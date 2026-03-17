@@ -10,12 +10,24 @@ import { useLocalSearchParams, router } from "expo-router";
 import { CheckCircle, XCircle, ArrowLeft, Wallet } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useCheckout } from "@/context/CheckoutContext";
+import * as Notifications from "expo-notifications";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
 const BORDER = "#e2e8f0";
 
 type Status = "confirming" | "loading" | "success" | "error";
+
+async function sendPaymentNotification(amount: number, newBalance: number) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "💳 Pago registrado",
+      body: `Se ha registrado un pago de $${amount.toFixed(2)} desde su cuenta. Saldo restante: $${newBalance.toFixed(2)}`,
+      sound: true,
+    },
+    trigger: null,
+  });
+}
 
 export default function PaymentScreen() {
   const { code } = useLocalSearchParams<{ code: string }>();
@@ -33,8 +45,10 @@ export default function PaymentScreen() {
     setStatus("loading");
     const result = await pay(code ?? "");
     if (result.success) {
-      setNewBalance(balance - amount);
+      const nb = parseFloat((balance - amount).toFixed(2));
+      setNewBalance(nb);
       setStatus("success");
+      await sendPaymentNotification(amount, nb);
     } else {
       setErrorMsg(result.error ?? "Error desconocido.");
       setStatus("error");

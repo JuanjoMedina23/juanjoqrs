@@ -1,7 +1,6 @@
-import {View,TouchableOpacity,Text,StyleSheet,} from "react-native";
+import { View, TouchableOpacity, Text, StyleSheet } from "react-native";
 import { useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
-import * as Notifications from "expo-notifications";
 import { router } from "expo-router";
 import { ArrowLeft } from "lucide-react-native";
 import { useState } from "react";
@@ -22,24 +21,11 @@ export default function PantallaDelScaner() {
   }
 
   const handleDataDetected = async (data: string) => {
-    if (processing) return; // evita múltiples lecturas
+    if (processing) return;
     setProcessing(true);
 
-    // Vibración
-    await Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Success
-    );
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-    // 🔔 Notificación local
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: "QR Detectado ✅",
-        body: `Código: ${data}`,
-      },
-      trigger: null,
-    });
-
-    // Espera pequeña para que se vea efecto
     setTimeout(() => {
       router.push({
         pathname: "/(checkout)/payment",
@@ -58,22 +44,12 @@ export default function PantallaDelScaner() {
         onDataDetected={handleDataDetected}
         disabled={processing}
       />
-
-      {/* Botón volver */}
       <TouchableOpacity
-        style={[
-          styles.backButton,
-          { backgroundColor: theme.card },
-        ]}
+        style={[styles.backButton, { backgroundColor: theme.card }]}
         onPress={handleGoMenu}
       >
         <ArrowLeft size={20} color={theme.text} />
-        <Text
-          style={[
-            styles.backText,
-            { color: theme.text },
-          ]}
-        >
+        <Text style={[styles.backText, { color: theme.text }]}>
           Volver al menú
         </Text>
       </TouchableOpacity>

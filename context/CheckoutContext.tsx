@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Notifications from "expo-notifications";
 
 export interface Transaction {
   id: string;
@@ -25,6 +26,17 @@ type CheckoutContextType = {
 };
 
 const CheckoutContext = createContext<CheckoutContextType | null>(null);
+
+async function sendTopUpNotification(amount: number, newBalance: number) {
+  await Notifications.scheduleNotificationAsync({
+    content: {
+      title: "💰 Recarga exitosa",
+      body: `Se han agregado $${amount.toFixed(2)} a su cuenta. Saldo actual: $${newBalance.toFixed(2)}`,
+      sound: true,
+    },
+    trigger: null,
+  });
+}
 
 export function CheckoutProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState<number>(INITIAL_BALANCE);
@@ -66,6 +78,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
     await Promise.all([
       AsyncStorage.setItem(STORAGE_KEY_BALANCE, newBalance.toString()),
       AsyncStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(newHistory)),
+      sendTopUpNotification(TOPUP_AMOUNT, newBalance),
     ]);
   }, [balance, history]);
 
