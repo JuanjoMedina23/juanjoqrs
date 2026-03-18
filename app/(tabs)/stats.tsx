@@ -51,7 +51,7 @@ export default function StatsScreen() {
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
   const payments = history.filter((t) => t.type === "payment");
-  const topups = history.filter((t) => t.type === "topup");
+  const topups = history.filter((t) => t.type === "topup" || t.type === "received");
   const isThisMonth = (iso: string) => {
     const d = new Date(iso);
     return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
