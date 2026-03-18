@@ -30,7 +30,7 @@ export default {
       ],
       config: {
         googleMaps: {
-          apiKey: "AIzaSyDSicTCjOSDT6s6kAWekwp-CqyD_4BSFkA",
+          apiKey: "TU_API_KEY",
         },
       },
       adaptiveIcon: {
