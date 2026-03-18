@@ -1,7 +1,18 @@
 import { useRef, useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, Animated, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Animated,
+  ScrollView,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Settings, QrCode } from "lucide-react-native";
+import { Settings, QrCode, X, Plus } from "lucide-react-native";
+import QRCode from "react-native-qrcode-svg";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { supabase } from "@/lib/core/auth/supabaseClient";
@@ -28,6 +39,12 @@ export const HomeView = ({ onScanPress, onSettingsPress }: Props) => {
   const { user } = useAuthContext();
   const [profileName, setProfileName] = useState<string | null>(null);
 
+  // Modal QR
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [qrValue, setQrValue] = useState<string | null>(null);
+  const [qrAmount, setQrAmount] = useState<string | null>(null);
+
   // Animaciones
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(24)).current;
@@ -49,7 +66,6 @@ export const HomeView = ({ onScanPress, onSettingsPress }: Props) => {
     ]).start();
   }, []);
 
-  // Cargar nombre desde profiles de Supabase
   useEffect(() => {
     if (!user) return;
     const load = async () => {
@@ -76,13 +92,33 @@ export const HomeView = ({ onScanPress, onSettingsPress }: Props) => {
     return "Buenas noches";
   };
 
-  // Tip del día basado en el día del mes
   const tip = TIPS[new Date().getDate() % TIPS.length];
 
   const gradientColors =
     mode === "dark"
       ? ["#0f172a", "#1e293b"] as const
       : ["#f8fafc", "#ede9fe"] as const;
+
+  // ── CAMBIO: el QR ahora lleva JSON con receiverId y amount ──
+  const handleGenerateQR = () => {
+    const parsed = parseFloat(amount);
+    if (isNaN(parsed) || parsed <= 0 || !user?.id) return;
+
+    const payload = JSON.stringify({
+      receiverId: user.id,
+      amount: parsed.toFixed(2),
+    });
+
+    setQrValue(payload);
+    setQrAmount(parsed.toFixed(2));
+  };
+
+  const handleCloseModal = () => {
+    setShowQRModal(false);
+    setAmount("");
+    setQrValue(null);
+    setQrAmount(null);
+  };
 
   return (
     <LinearGradient colors={gradientColors} style={{ flex: 1 }}>
@@ -180,14 +216,16 @@ export const HomeView = ({ onScanPress, onSettingsPress }: Props) => {
           </View>
         </Animated.View>
 
-        {/* Botón escanear */}
+        {/* Botones */}
         <Animated.View
           style={{
             opacity: btnAnim,
             marginHorizontal: 24,
             marginTop: 40,
+            gap: 12,
           }}
         >
+          {/* Escanear QR */}
           <TouchableOpacity
             style={{
               backgroundColor: PRIMARY,
@@ -211,8 +249,160 @@ export const HomeView = ({ onScanPress, onSettingsPress }: Props) => {
               Escanear QR
             </Text>
           </TouchableOpacity>
+
+          {/* Generar QR */}
+          <TouchableOpacity
+            style={{
+              backgroundColor: theme.card,
+              paddingVertical: 18,
+              borderRadius: 20,
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+              gap: 10,
+              elevation: 2,
+            }}
+            onPress={() => setShowQRModal(true)}
+            activeOpacity={0.9}
+          >
+            <Plus size={24} color={PRIMARY} />
+            <Text style={{ fontSize: 18, fontWeight: "700", color: PRIMARY }}>
+              Generar QR de cobro
+            </Text>
+          </TouchableOpacity>
         </Animated.View>
       </ScrollView>
+
+      {/* Modal generador de QR */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseModal}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={{ flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.5)" }}>
+            <View style={{
+              backgroundColor: theme.card,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 28,
+              gap: 20,
+            }}>
+              {/* Header modal */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                <Text style={{ fontSize: 20, fontWeight: "800", color: theme.text }}>
+                  Generar QR de cobro
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    width: 36, height: 36, borderRadius: 18,
+                    backgroundColor: theme.background,
+                    justifyContent: "center", alignItems: "center",
+                  }}
+                  onPress={handleCloseModal}
+                >
+                  <X size={18} color={theme.text} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Input monto */}
+              {!qrValue ? (
+                <>
+                  <View>
+                    <Text style={{ fontSize: 13, fontWeight: "600", color: theme.text, opacity: 0.5, marginBottom: 8 }}>
+                      MONTO A COBRAR
+                    </Text>
+                    <View style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      backgroundColor: theme.background,
+                      borderRadius: 16,
+                      paddingHorizontal: 16,
+                      paddingVertical: 14,
+                      gap: 8,
+                    }}>
+                      <Text style={{ fontSize: 24, fontWeight: "700", color: PRIMARY }}>$</Text>
+                      <TextInput
+                        style={{ flex: 1, fontSize: 28, fontWeight: "800", color: theme.text }}
+                        placeholder="0.00"
+                        placeholderTextColor={`${theme.text}40`}
+                        keyboardType="decimal-pad"
+                        value={amount}
+                        onChangeText={setAmount}
+                        autoFocus
+                      />
+                    </View>
+                  </View>
+
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: parseFloat(amount) > 0 ? PRIMARY : `${PRIMARY}60`,
+                      paddingVertical: 16,
+                      borderRadius: 16,
+                      alignItems: "center",
+                    }}
+                    onPress={handleGenerateQR}
+                    disabled={!amount || parseFloat(amount) <= 0}
+                  >
+                    <Text style={{ color: "#fff", fontWeight: "700", fontSize: 16 }}>
+                      Generar QR
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {/* QR generado */}
+                  <View style={{ alignItems: "center", gap: 16 }}>
+                    <Text style={{ fontSize: 14, color: theme.text, opacity: 0.5 }}>
+                      Muestra este código para recibir el pago
+                    </Text>
+                    <View style={{
+                      backgroundColor: "#fff",
+                      padding: 20,
+                      borderRadius: 20,
+                      elevation: 4,
+                      shadowColor: "#000",
+                      shadowOpacity: 0.1,
+                      shadowRadius: 10,
+                      shadowOffset: { width: 0, height: 4 },
+                    }}>
+                      {/* ── CAMBIO: qrValue ahora es el JSON completo ── */}
+                      <QRCode
+                        value={qrValue}
+                        size={200}
+                        color="#0f172a"
+                        backgroundColor="#fff"
+                      />
+                    </View>
+                    {/* ── CAMBIO: mostramos qrAmount (solo el número) en pantalla ── */}
+                    <Text style={{ fontSize: 36, fontWeight: "800", color: theme.text, letterSpacing: -1 }}>
+                      ${qrAmount}
+                    </Text>
+                  </View>
+
+                  <TouchableOpacity
+                    style={{
+                      backgroundColor: theme.background,
+                      paddingVertical: 16,
+                      borderRadius: 16,
+                      alignItems: "center",
+                    }}
+                    onPress={() => { setQrValue(null); setQrAmount(null); setAmount(""); }}
+                  >
+                    <Text style={{ color: theme.text, fontWeight: "600", fontSize: 15 }}>
+                      Generar otro
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </LinearGradient>
   );
 };

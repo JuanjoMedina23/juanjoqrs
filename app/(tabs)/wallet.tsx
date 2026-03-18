@@ -1,9 +1,11 @@
+import { useRef, useEffect } from "react";
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   FlatList,
+  Animated,
 } from "react-native";
 import { Wallet, ArrowDownCircle, ArrowUpCircle, Plus, BarChart2 } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
@@ -17,16 +19,33 @@ const TEXT_SECONDARY = "#64748b";
 export default function WalletScreen() {
   const { theme } = useTheme();
   const { balance, history, loading, topUp, TOPUP_AMOUNT } = useCheckout();
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const cardSlide = useRef(new Animated.Value(30)).current;
+  const listAnim = useRef(new Animated.Value(0)).current;
+  const listSlide = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    if (loading) return;
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(fadeAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(cardSlide, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+      Animated.parallel([
+        Animated.timing(listAnim, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.timing(listSlide, { toValue: 0, duration: 400, useNativeDriver: true }),
+      ]),
+    ]).start();
+  }, [loading]);
+
   const s = styles(theme);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);
     return d.toLocaleDateString("es-ES", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      day: "2-digit", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit",
     });
   };
 
@@ -56,28 +75,32 @@ export default function WalletScreen() {
 
   return (
     <View style={s.container}>
-      <View style={s.balanceCard}>
-        <View style={s.balanceHeader}>
-          <Wallet size={22} color="#fff" />
-          <Text style={s.balanceLabel}>Saldo disponible</Text>
+      {/* Tarjeta de saldo animada */}
+      <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: cardSlide }] }}>
+        <View style={s.balanceCard}>
+          <View style={s.balanceHeader}>
+            <Wallet size={22} color="#fff" />
+            <Text style={s.balanceLabel}>Saldo disponible</Text>
+          </View>
+          <Text style={s.balanceAmount}>${balance.toFixed(2)}</Text>
+          <View style={s.cardActions}>
+            <TouchableOpacity style={s.topupBtn} onPress={topUp}>
+              <Plus size={16} color={PRIMARY} />
+              <Text style={s.topupText}>Recargar ${TOPUP_AMOUNT}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={s.statsBtn}
+              onPress={() => router.push("/(tabs)/stats")}
+            >
+              <BarChart2 size={16} color="#fff" />
+              <Text style={s.statsBtnText}>Estadísticas</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-        <Text style={s.balanceAmount}>${balance.toFixed(2)}</Text>
-        <View style={s.cardActions}>
-          <TouchableOpacity style={s.topupBtn} onPress={topUp}>
-            <Plus size={16} color={PRIMARY} />
-            <Text style={s.topupText}>Recargar ${TOPUP_AMOUNT}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={s.statsBtn}
-            onPress={() => router.push("/(tabs)/stats")}
-          >
-            <BarChart2 size={16} color="#fff" />
-            <Text style={s.statsBtnText}>Estadísticas</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+      </Animated.View>
 
-      <View style={s.historySection}>
+      {/* Historial animado */}
+      <Animated.View style={[s.historySection, { opacity: listAnim, transform: [{ translateY: listSlide }] }]}>
         <Text style={s.historyTitle}>Historial</Text>
         {history.length === 0 ? (
           <View style={s.emptyState}>
@@ -94,7 +117,7 @@ export default function WalletScreen() {
             showsVerticalScrollIndicator={false}
           />
         )}
-      </View>
+      </Animated.View>
     </View>
   );
 }
@@ -119,109 +142,38 @@ const styles = (theme: any) =>
       shadowOffset: { width: 0, height: 6 },
     },
     balanceHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginBottom: 8,
+      flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 8,
     },
-    balanceLabel: {
-      color: "rgba(255,255,255,0.8)",
-      fontSize: 14,
-      fontWeight: "500",
-    },
+    balanceLabel: { color: "rgba(255,255,255,0.8)", fontSize: 14, fontWeight: "500" },
     balanceAmount: {
-      color: "#fff",
-      fontSize: 52,
-      fontWeight: "800",
-      letterSpacing: -2,
-      marginBottom: 20,
+      color: "#fff", fontSize: 52, fontWeight: "800", letterSpacing: -2, marginBottom: 20,
     },
-    cardActions: {
-      flexDirection: "row",
-      gap: 10,
-      alignItems: "center",
-    },
+    cardActions: { flexDirection: "row", gap: 10, alignItems: "center" },
     topupBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: "#fff",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      backgroundColor: "#fff", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     },
-    topupText: {
-      color: PRIMARY,
-      fontWeight: "700",
-      fontSize: 14,
-    },
+    topupText: { color: PRIMARY, fontWeight: "700", fontSize: 14 },
     statsBtn: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      backgroundColor: "rgba(255,255,255,0.2)",
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      borderRadius: 12,
+      flexDirection: "row", alignItems: "center", gap: 8,
+      backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12,
     },
-    statsBtnText: {
-      color: "#fff",
-      fontWeight: "700",
-      fontSize: 14,
-    },
+    statsBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
     historySection: { flex: 1 },
-    historyTitle: {
-      fontSize: 18,
-      fontWeight: "700",
-      color: theme.text,
-      marginBottom: 16,
-    },
+    historyTitle: { fontSize: 18, fontWeight: "700", color: theme.text, marginBottom: 16 },
     txRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: theme.card,
-      borderRadius: 16,
-      padding: 14,
-      gap: 12,
+      flexDirection: "row", alignItems: "center",
+      backgroundColor: theme.card, borderRadius: 16, padding: 14, gap: 12,
     },
-    txIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      justifyContent: "center",
-      alignItems: "center",
-    },
+    txIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: "center", alignItems: "center" },
     txInfo: { flex: 1 },
-    txType: {
-      fontSize: 15,
-      fontWeight: "600",
-      color: theme.text,
-    },
-    txDate: {
-      fontSize: 12,
-      color: TEXT_SECONDARY,
-      marginTop: 2,
-    },
-    txAmount: {
-      fontSize: 16,
-      fontWeight: "700",
-    },
+    txType: { fontSize: 15, fontWeight: "600", color: theme.text },
+    txDate: { fontSize: 12, color: TEXT_SECONDARY, marginTop: 2 },
+    txAmount: { fontSize: 16, fontWeight: "700" },
     emptyState: {
-      flex: 1,
-      justifyContent: "center",
-      alignItems: "center",
-      paddingTop: 60,
-      gap: 8,
+      flex: 1, justifyContent: "center", alignItems: "center", paddingTop: 60, gap: 8,
     },
     emptyIcon: { fontSize: 48 },
-    emptyText: {
-      fontSize: 17,
-      fontWeight: "600",
-      color: theme.text,
-    },
-    emptySubtext: {
-      fontSize: 14,
-      color: TEXT_SECONDARY,
-      textAlign: "center",
-    },
+    emptyText: { fontSize: 17, fontWeight: "600", color: theme.text },
+    emptySubtext: { fontSize: 14, color: TEXT_SECONDARY, textAlign: "center" },
   });

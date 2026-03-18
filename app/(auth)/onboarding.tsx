@@ -8,10 +8,12 @@ import {
   Dimensions,
 } from "react-native";
 import { router } from "expo-router";
+import LottieView from "lottie-react-native";
 import { ScanLine, Wallet, MapPin } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 
 const PRIMARY = "#6C63FF";
+const TEXT_SECONDARY = "#64748b";
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const FEATURES = [
@@ -42,63 +44,61 @@ export default function OnboardingScreen() {
   const { theme } = useTheme();
   const s = styles(theme);
 
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(30)).current;
+  const lottieAnim = useRef(new Animated.Value(0)).current;
+  const titleAnim = useRef(new Animated.Value(0)).current;
+  const titleSlide = useRef(new Animated.Value(20)).current;
   const featureAnims = useRef(FEATURES.map(() => ({
     opacity: new Animated.Value(0),
     translateY: new Animated.Value(20),
   }))).current;
+  const btnAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    featureAnims.forEach((anim, i) => {
+    Animated.sequence([
+      Animated.timing(lottieAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(anim.opacity, {
-          toValue: 1,
-          duration: 500,
-          delay: 400 + i * 150,
-          useNativeDriver: true,
-        }),
-        Animated.timing(anim.translateY, {
-          toValue: 0,
-          duration: 500,
-          delay: 400 + i * 150,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    });
+        Animated.timing(titleAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(titleSlide, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+      Animated.stagger(
+        120,
+        featureAnims.map((anim) =>
+          Animated.parallel([
+            Animated.timing(anim.opacity, { toValue: 1, duration: 400, useNativeDriver: true }),
+            Animated.timing(anim.translateY, { toValue: 0, duration: 400, useNativeDriver: true }),
+          ])
+        )
+      ),
+      Animated.timing(btnAnim, { toValue: 1, duration: 350, useNativeDriver: true }),
+    ]).start();
   }, []);
-
-  const handleStart = () => {
-    router.replace("/(auth)/login");
-  };
 
   return (
     <View style={s.container}>
+      {/* Lottie animación */}
+      <Animated.View style={[s.lottieWrapper, { opacity: lottieAnim }]}>
+        <LottieView
+          source={require("../../assets/animations/onboarding.json")}
+          autoPlay
+          loop
+          style={{ width: SCREEN_WIDTH * 0.65, height: SCREEN_WIDTH * 0.65 }}
+        />
+      </Animated.View>
+
+      {/* Título */}
       <Animated.View
-        style={[s.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
+        style={[
+          s.titleWrapper,
+          { opacity: titleAnim, transform: [{ translateY: titleSlide }] },
+        ]}
       >
-        <View style={s.logoWrapper}>
-          <ScanLine size={36} color="#fff" />
-        </View>
         <Text style={s.title}>Bienvenido a JuanjoQRs</Text>
         <Text style={s.subtitle}>
           Tu app de pagos con QR. Rápido, seguro y sencillo.
         </Text>
       </Animated.View>
 
+      {/* Features */}
       <View style={s.features}>
         {FEATURES.map((f, i) => {
           const Icon = f.icon;
@@ -126,8 +126,12 @@ export default function OnboardingScreen() {
         })}
       </View>
 
-      <Animated.View style={{ opacity: fadeAnim, width: "100%" }}>
-        <TouchableOpacity style={s.btn} onPress={handleStart}>
+      {/* Botón */}
+      <Animated.View style={[s.btnWrapper, { opacity: btnAnim }]}>
+        <TouchableOpacity
+          style={s.btn}
+          onPress={() => router.replace("/(auth)/login")}
+        >
           <Text style={s.btnText}>Ir al inicio de sesión</Text>
         </TouchableOpacity>
       </Animated.View>
@@ -141,29 +145,18 @@ const styles = (theme: any) =>
       flex: 1,
       backgroundColor: theme.background,
       paddingHorizontal: 24,
-      paddingTop: 80,
+      paddingTop: 60,
       paddingBottom: 40,
       alignItems: "center",
-      justifyContent: "space-between",
     },
-    header: {
-      alignItems: "center",
-      gap: 12,
-      marginBottom: 8,
-    },
-    logoWrapper: {
-      width: 80,
-      height: 80,
-      borderRadius: 24,
-      backgroundColor: PRIMARY,
-      justifyContent: "center",
+    lottieWrapper: {
       alignItems: "center",
       marginBottom: 8,
-      elevation: 8,
-      shadowColor: PRIMARY,
-      shadowOpacity: 0.4,
-      shadowRadius: 16,
-      shadowOffset: { width: 0, height: 6 },
+    },
+    titleWrapper: {
+      alignItems: "center",
+      marginBottom: 24,
+      gap: 6,
     },
     title: {
       fontSize: 26,
@@ -173,24 +166,25 @@ const styles = (theme: any) =>
     },
     subtitle: {
       fontSize: 15,
-      color: "#64748b",
+      color: TEXT_SECONDARY,
       textAlign: "center",
       lineHeight: 22,
     },
     features: {
       width: "100%",
-      gap: 12,
+      gap: 10,
+      flex: 1,
     },
     featureRow: {
       flexDirection: "row",
       alignItems: "center",
       borderRadius: 18,
-      padding: 16,
+      padding: 14,
       gap: 14,
     },
     featureIcon: {
-      width: 48,
-      height: 48,
+      width: 46,
+      height: 46,
       borderRadius: 14,
       justifyContent: "center",
       alignItems: "center",
@@ -203,15 +197,18 @@ const styles = (theme: any) =>
     },
     featureDesc: {
       fontSize: 13,
-      color: "#64748b",
+      color: TEXT_SECONDARY,
       lineHeight: 18,
+    },
+    btnWrapper: {
+      width: "100%",
+      marginTop: 24,
     },
     btn: {
       backgroundColor: PRIMARY,
       paddingVertical: 16,
       borderRadius: 16,
       alignItems: "center",
-      width: "100%",
       elevation: 4,
       shadowColor: PRIMARY,
       shadowOpacity: 0.3,

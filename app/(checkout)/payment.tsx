@@ -12,6 +12,7 @@ import { useLocalSearchParams, router } from "expo-router";
 import { CheckCircle, XCircle, ArrowLeft, Wallet } from "lucide-react-native";
 import { useTheme } from "@/context/ThemeContext";
 import { useCheckout } from "@/context/CheckoutContext";
+import { parseQRPayload } from "@/lib/payments/registerTransaction";
 import * as Notifications from "expo-notifications";
 
 const PRIMARY = "#6C63FF";
@@ -109,13 +110,23 @@ export default function PaymentScreen() {
   const [errorMsg, setErrorMsg] = useState("");
   const [newBalance, setNewBalance] = useState(0);
 
-  const amount = parseFloat(code ?? "");
-  const isValidAmount = !isNaN(amount) && amount > 0;
+  // ── CORRECCIÓN: parsear el JSON del QR para obtener el monto ──
+  let amount = 0;
+  let isValidAmount = false;
+
+  try {
+    const payload = parseQRPayload(code ?? "");
+    amount = parseFloat(payload.amount);
+    isValidAmount = !isNaN(amount) && amount > 0;
+  } catch {
+    isValidAmount = false;
+  }
 
   const confettiPieces = useConfetti(status === "success");
 
   const handlePay = async () => {
     setStatus("loading");
+    // pay() recibe el JSON completo del QR, no solo el monto
     const result = await pay(code ?? "");
     if (result.success) {
       const nb = parseFloat((balance - amount).toFixed(2));
