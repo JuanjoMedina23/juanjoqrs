@@ -14,6 +14,7 @@ export default {
         NSCameraUsageDescription: "Otorga permiso para que la app pueda usar la camara :)",
         NSUserNotificationUsageDescription: "Necesitamos enviarte notificaciones importantes",
         NSLocationWhenInUseUsageDescription: "Permite mostrar tu ubicación en el mapa.",
+        NSPhotoLibraryUsageDescription: "Permite acceder a tu galería para cambiar tu foto de perfil.",
       },
     },
     android: {
@@ -24,6 +25,8 @@ export default {
         "android.permission.RECORD_AUDIO",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
       ],
       config: {
         googleMaps: {
@@ -58,6 +61,12 @@ export default {
         "expo-location",
         {
           locationWhenInUsePermission: "Permite mostrar tu ubicación en el mapa.",
+        },
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "Permite acceder a tu galería para cambiar tu foto de perfil.",
         },
       ],
       [

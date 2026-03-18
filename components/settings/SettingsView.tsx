@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -18,7 +18,10 @@ import {
   User,
   Info,
   ChevronRight,
+  Pencil,
+  Camera,
 } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useTheme } from "@/context/ThemeContext";
 import { useAuthContext } from "@/context/AuthContext";
 import { supabase } from "@/lib/core/auth/supabaseClient";
@@ -41,13 +44,42 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
   const { user, signOut } = useAuthContext();
   const styles = createStyles(theme);
 
+  // Contraseña
   const [showChangePassword, setShowChangePassword] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  const displayName = user?.user_metadata?.full_name ?? user?.email?.split("@")[0] ?? "Usuario";
-  const avatarUrl = user?.user_metadata?.avatar_url ?? null;
+  // Perfil
+  const [showEditProfile, setShowEditProfile] = useState(false);
+  const [fullName, setFullName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Cargar perfil desde Supabase
+  useEffect(() => {
+    if (!user) return;
+    const loadProfile = async () => {
+      const { data } = await supabase
+        .from("profiles")
+        .select("full_name, avatar_url")
+        .eq("id", user.id)
+        .single();
+
+      if (data) {
+        setFullName(data.full_name ?? "");
+        setAvatarUrl(data.avatar_url ?? null);
+      } else {
+        // Si no existe el perfil, usar user_metadata como fallback
+        setFullName(user.user_metadata?.full_name ?? "");
+        setAvatarUrl(user.user_metadata?.avatar_url ?? null);
+      }
+    };
+    loadProfile();
+  }, [user]);
+
+  const displayName = fullName || (user?.email?.split("@")[0] ?? "Usuario");
 
   const handleSignOut = () => {
     Alert.alert(
@@ -73,11 +105,9 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
       Alert.alert("Error", "La contraseña debe tener al menos 6 caracteres.");
       return;
     }
-
     setChangingPassword(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setChangingPassword(false);
-
     if (error) {
       Alert.alert("Error", error.message);
     } else {
@@ -85,6 +115,78 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
       setShowChangePassword(false);
       setNewPassword("");
       setConfirmPassword("");
+    }
+  };
+
+  const handlePickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso denegado", "Necesitamos acceso a tu galería.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const asset = result.assets[0];
+    setUploadingAvatar(true);
+
+    try {
+      const ext = asset.uri.split(".").pop() ?? "jpg";
+      const fileName = `${user!.id}/avatar.${ext}`;
+
+      const response = await fetch(asset.uri);
+      const blob = await response.blob();
+      const arrayBuffer = await new Response(blob).arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(fileName, arrayBuffer, {
+          contentType: `image/${ext}`,
+          upsert: true,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("avatars")
+        .getPublicUrl(fileName);
+
+      setAvatarUrl(urlData.publicUrl + "?t=" + Date.now());
+    }  catch (e: any) {
+  console.error("Upload error:", e);
+  Alert.alert("Error", e.message ?? "No se pudo subir la imagen.");
+} finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        full_name: fullName.trim(),
+        avatar_url: avatarUrl,
+        updated_at: new Date().toISOString(),
+      });
+
+    setSavingProfile(false);
+
+    if (error) {
+      Alert.alert("Error", error.message);
+    } else {
+      Alert.alert("Éxito", "Perfil actualizado correctamente.");
+      setShowEditProfile(false);
     }
   };
 
@@ -104,24 +206,57 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
 
       {/* Avatar + info usuario */}
       <View style={[s.userCard, { backgroundColor: theme.card }]}>
-        <View style={s.avatarWrapper}>
-          {avatarUrl ? (
+        <TouchableOpacity style={s.avatarWrapper} onPress={handlePickImage} disabled={uploadingAvatar}>
+          {uploadingAvatar ? (
+            <View style={[s.avatarFallback, { backgroundColor: PRIMARY }]}>
+              <ActivityIndicator color="#fff" />
+            </View>
+          ) : avatarUrl ? (
             <Image source={{ uri: avatarUrl }} style={s.avatar} />
           ) : (
             <View style={[s.avatarFallback, { backgroundColor: PRIMARY }]}>
-              <Text style={s.avatarLetter}>
-                {displayName.charAt(0).toUpperCase()}
-              </Text>
+              <Text style={s.avatarLetter}>{displayName.charAt(0).toUpperCase()}</Text>
             </View>
           )}
-        </View>
+          <View style={s.cameraBtn}>
+            <Camera size={12} color="#fff" />
+          </View>
+        </TouchableOpacity>
         <View style={s.userInfo}>
           <Text style={[s.userName, { color: theme.text }]}>{displayName}</Text>
           <Text style={[s.userEmail, { color: TEXT_SECONDARY }]}>{user?.email}</Text>
         </View>
+        <TouchableOpacity onPress={() => setShowEditProfile(!showEditProfile)}>
+          <Pencil size={18} color={PRIMARY} />
+        </TouchableOpacity>
       </View>
 
-      {/* Cambiar contraseña */}
+      {/* Editar perfil */}
+      {showEditProfile && (
+        <View style={[s.editCard, { backgroundColor: theme.card }]}>
+          <Text style={[s.editLabel, { color: TEXT_SECONDARY }]}>Nombre</Text>
+          <TextInput
+            style={[s.input, { backgroundColor: theme.background, color: theme.text }]}
+            placeholder="Tu nombre"
+            placeholderTextColor={TEXT_SECONDARY}
+            value={fullName}
+            onChangeText={setFullName}
+          />
+          <TouchableOpacity
+            style={[s.saveBtn, { backgroundColor: PRIMARY }]}
+            onPress={handleSaveProfile}
+            disabled={savingProfile}
+          >
+            {savingProfile ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={s.saveBtnText}>Guardar perfil</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Cuenta */}
       <Text style={[s.sectionTitle, { color: TEXT_SECONDARY }]}>CUENTA</Text>
       <View style={[s.section, { backgroundColor: theme.card }]}>
         <TouchableOpacity
@@ -199,7 +334,7 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
         />
       </View>
 
-      {/* Info de la app */}
+      {/* Info */}
       <Text style={[s.sectionTitle, { color: TEXT_SECONDARY }]}>INFORMACIÓN</Text>
       <View style={[s.section, { backgroundColor: theme.card }]}>
         <View style={s.row}>
@@ -224,18 +359,19 @@ export const SettingsView = ({ currentMode, onChangeMode, onBackPress }: Props) 
   );
 };
 
-// Estilos locales
 const s = {
   userCard: {
     flexDirection: "row" as const,
     alignItems: "center" as const,
     marginHorizontal: 20,
-    marginBottom: 24,
+    marginBottom: 12,
     padding: 16,
     borderRadius: 18,
     gap: 14,
   },
-  avatarWrapper: {},
+  avatarWrapper: {
+    position: "relative" as const,
+  },
   avatar: {
     width: 56,
     height: 56,
@@ -253,16 +389,31 @@ const s = {
     fontWeight: "800" as const,
     color: "#fff",
   },
-  userInfo: {
-    flex: 1,
+  cameraBtn: {
+    position: "absolute" as const,
+    bottom: 0,
+    right: 0,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: PRIMARY,
+    justifyContent: "center" as const,
+    alignItems: "center" as const,
   },
-  userName: {
-    fontSize: 17,
-    fontWeight: "700" as const,
+  userInfo: { flex: 1 },
+  userName: { fontSize: 17, fontWeight: "700" as const },
+  userEmail: { fontSize: 13, marginTop: 2 },
+  editCard: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+    borderRadius: 18,
+    padding: 16,
+    gap: 10,
   },
-  userEmail: {
-    fontSize: 13,
-    marginTop: 2,
+  editLabel: {
+    fontSize: 12,
+    fontWeight: "600" as const,
+    letterSpacing: 0.5,
   },
   sectionTitle: {
     fontSize: 11,
@@ -290,13 +441,8 @@ const s = {
     alignItems: "center" as const,
     gap: 12,
   },
-  rowText: {
-    fontSize: 15,
-    fontWeight: "500" as const,
-  },
-  rowValue: {
-    fontSize: 13,
-  },
+  rowText: { fontSize: 15, fontWeight: "500" as const },
+  rowValue: { fontSize: 13 },
   divider: {
     height: 1,
     backgroundColor: "rgba(0,0,0,0.06)",
@@ -336,24 +482,18 @@ type ButtonProps = {
   theme: any;
 };
 
-const ThemeButton = ({ label, active, onPress, icon, theme }: ButtonProps) => {
-  return (
-    <TouchableOpacity
-      style={[s.row, active && { backgroundColor: PRIMARY }]}
-      onPress={onPress}
-      activeOpacity={0.85}
-    >
-      <View style={s.rowLeft}>
-        {icon}
-        <Text style={{ fontSize: 15, fontWeight: "500", color: active ? "#fff" : theme.text }}>
-          {label}
-        </Text>
-      </View>
-      {active && (
-        <View style={{
-          width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff"
-        }} />
-      )}
-    </TouchableOpacity>
-  );
-};
+const ThemeButton = ({ label, active, onPress, icon, theme }: ButtonProps) => (
+  <TouchableOpacity
+    style={[s.row, active && { backgroundColor: PRIMARY }]}
+    onPress={onPress}
+    activeOpacity={0.85}
+  >
+    <View style={s.rowLeft}>
+      {icon}
+      <Text style={{ fontSize: 15, fontWeight: "500", color: active ? "#fff" : theme.text }}>
+        {label}
+      </Text>
+    </View>
+    {active && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#fff" }} />}
+  </TouchableOpacity>
+);
