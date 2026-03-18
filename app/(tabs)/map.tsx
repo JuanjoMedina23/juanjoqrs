@@ -15,11 +15,11 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useTheme } from "@/context/ThemeContext";
+import { useAuthContext } from "@/context/AuthContext";
 import { MapPin, RefreshCw, Search, Trash2, X, Star, Eye, Tag } from "lucide-react-native";
 
 const PRIMARY = "#6C63FF";
 const TEXT_SECONDARY = "#64748b";
-const STORAGE_KEY = "map_markers";
 
 type Category = "favorito" | "visitado" | "otro";
 
@@ -60,7 +60,12 @@ const DARK_MAP_STYLE = [
 
 export default function MapScreen() {
   const { theme, mode } = useTheme();
+  const { user } = useAuthContext();
   const mapRef = useRef<MapView>(null);
+
+  const userId = user?.id ?? "guest";
+  const STORAGE_KEY = `map_markers_${userId}`;
+
   const [location, setLocation] = useState<LocationState>({ status: "loading" });
   const [markers, setMarkers] = useState<MarkerData[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -69,7 +74,6 @@ export default function MapScreen() {
   const [showSearch, setShowSearch] = useState(false);
   const [filterCategory, setFilterCategory] = useState<Category | null>(null);
 
-  // Modal para nuevo marcador
   const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number; defaultLabel: string } | null>(null);
   const [modalName, setModalName] = useState("");
   const [modalCategory, setModalCategory] = useState<Category>("otro");
@@ -80,7 +84,9 @@ export default function MapScreen() {
     mode === "dark" ||
     (mode === "normal" && theme.background === "#0f172a");
 
+  // Recargar marcadores cuando cambia el usuario
   useEffect(() => {
+    setMarkers([]);
     const loadMarkers = async () => {
       try {
         const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -89,7 +95,7 @@ export default function MapScreen() {
     };
     loadMarkers();
     fetchLocation();
-  }, []);
+  }, [userId]);
 
   const saveMarkers = async (newMarkers: MarkerData[]) => {
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newMarkers));
@@ -109,7 +115,6 @@ export default function MapScreen() {
     setLocation({ status: "ready", lat: latitude, lng: longitude, city });
   };
 
-  // Al hacer long press abre el modal con la dirección como nombre sugerido
   const handleLongPress = async (lat: number, lng: number) => {
     const [place] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
     const defaultLabel =
@@ -212,7 +217,6 @@ export default function MapScreen() {
       style={s.container}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
-      {/* Header */}
       <View style={s.header}>
         <View style={s.headerLeft}>
           <MapPin size={18} color={PRIMARY} />
@@ -231,7 +235,6 @@ export default function MapScreen() {
         </View>
       </View>
 
-      {/* Filtros de categoría */}
       <View style={s.filterRow}>
         <TouchableOpacity
           style={[s.filterChip, filterCategory === null && { backgroundColor: PRIMARY }]}
@@ -259,7 +262,6 @@ export default function MapScreen() {
         })}
       </View>
 
-      {/* Buscador */}
       {showSearch && (
         <View style={s.searchContainer}>
           <View style={s.searchRow}>
@@ -297,7 +299,6 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Mapa */}
       <MapView
         ref={mapRef}
         style={s.map}
@@ -326,7 +327,6 @@ export default function MapScreen() {
         ))}
       </MapView>
 
-      {/* Lista de marcadores */}
       {filteredMarkers.length > 0 && (
         <View style={s.markersList}>
           <FlatList
@@ -348,68 +348,67 @@ export default function MapScreen() {
         </View>
       )}
 
-      {/* Modal nuevo marcador */}
       <Modal
-  visible={pendingCoords !== null}
-  transparent
-  animationType="slide"
-  onRequestClose={() => setPendingCoords(null)}
->
-  <KeyboardAvoidingView
-    style={{ flex: 1 }}
-    behavior={Platform.OS === "ios" ? "padding" : "height"}
-  >
-    <View style={s.modalOverlay}>
-      <View style={[s.modalCard, { backgroundColor: theme.card }]}>
-        <Text style={[s.modalTitle, { color: theme.text }]}>Nuevo marcador</Text>
+        visible={pendingCoords !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPendingCoords(null)}
+      >
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          <View style={s.modalOverlay}>
+            <View style={[s.modalCard, { backgroundColor: theme.card }]}>
+              <Text style={[s.modalTitle, { color: theme.text }]}>Nuevo marcador</Text>
 
-        <TextInput
-          style={[s.modalInput, { backgroundColor: theme.background, color: theme.text }]}
-          placeholder="Nombre del lugar"
-          placeholderTextColor={TEXT_SECONDARY}
-          value={modalName}
-          onChangeText={setModalName}
-          autoFocus
-        />
+              <TextInput
+                style={[s.modalInput, { backgroundColor: theme.background, color: theme.text }]}
+                placeholder="Nombre del lugar"
+                placeholderTextColor={TEXT_SECONDARY}
+                value={modalName}
+                onChangeText={setModalName}
+                autoFocus
+              />
 
-        <Text style={[s.modalLabel, { color: TEXT_SECONDARY }]}>Categoría</Text>
-        <View style={s.categoryRow}>
-          {CATEGORIES.map((cat) => {
-            const Icon = cat.icon;
-            const active = modalCategory === cat.key;
-            return (
-              <TouchableOpacity
-                key={cat.key}
-                style={[s.categoryBtn, active && { backgroundColor: cat.color }]}
-                onPress={() => setModalCategory(cat.key)}
-              >
-                <Icon size={16} color={active ? "#fff" : TEXT_SECONDARY} />
-                <Text style={[s.categoryBtnText, active && { color: "#fff" }]}>
-                  {cat.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+              <Text style={[s.modalLabel, { color: TEXT_SECONDARY }]}>Categoría</Text>
+              <View style={s.categoryRow}>
+                {CATEGORIES.map((cat) => {
+                  const Icon = cat.icon;
+                  const active = modalCategory === cat.key;
+                  return (
+                    <TouchableOpacity
+                      key={cat.key}
+                      style={[s.categoryBtn, active && { backgroundColor: cat.color }]}
+                      onPress={() => setModalCategory(cat.key)}
+                    >
+                      <Icon size={16} color={active ? "#fff" : TEXT_SECONDARY} />
+                      <Text style={[s.categoryBtnText, active && { color: "#fff" }]}>
+                        {cat.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
-        <View style={s.modalActions}>
-          <TouchableOpacity
-            style={[s.modalBtn, { backgroundColor: theme.background }]}
-            onPress={() => setPendingCoords(null)}
-          >
-            <Text style={[s.modalBtnText, { color: theme.text }]}>Cancelar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[s.modalBtn, { backgroundColor: PRIMARY }]}
-            onPress={confirmAddMarker}
-          >
-            <Text style={[s.modalBtnText, { color: "#fff" }]}>Guardar</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </View>
-  </KeyboardAvoidingView>
-</Modal>
+              <View style={s.modalActions}>
+                <TouchableOpacity
+                  style={[s.modalBtn, { backgroundColor: theme.background }]}
+                  onPress={() => setPendingCoords(null)}
+                >
+                  <Text style={[s.modalBtnText, { color: theme.text }]}>Cancelar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[s.modalBtn, { backgroundColor: PRIMARY }]}
+                  onPress={confirmAddMarker}
+                >
+                  <Text style={[s.modalBtnText, { color: "#fff" }]}>Guardar</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -432,20 +431,14 @@ const styles = (theme: any) =>
       justifyContent: "center", alignItems: "center",
     },
     filterRow: {
-      flexDirection: "row",
-      gap: 8,
-      paddingHorizontal: 16,
-      paddingBottom: 10,
+      flexDirection: "row", gap: 8,
+      paddingHorizontal: 16, paddingBottom: 10,
       backgroundColor: theme.background,
     },
     filterChip: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: 20,
-      backgroundColor: theme.card,
+      flexDirection: "row", alignItems: "center", gap: 4,
+      paddingHorizontal: 12, paddingVertical: 6,
+      borderRadius: 20, backgroundColor: theme.card,
     },
     filterChipText: { fontSize: 12, fontWeight: "600", color: TEXT_SECONDARY },
     searchContainer: {
@@ -481,11 +474,7 @@ const styles = (theme: any) =>
       borderRadius: 14, marginTop: 8,
     },
     retryText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-    // Modal
-    modalOverlay: {
-      flex: 1,
-      justifyContent: "flex-end",
-    },
+    modalOverlay: { flex: 1, justifyContent: "flex-end" },
     modalCard: {
       borderTopLeftRadius: 24, borderTopRightRadius: 24,
       padding: 24, gap: 14,
@@ -493,8 +482,7 @@ const styles = (theme: any) =>
     modalTitle: { fontSize: 18, fontWeight: "800" },
     modalLabel: { fontSize: 12, fontWeight: "600", letterSpacing: 0.5 },
     modalInput: {
-      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12,
-      fontSize: 15,
+      borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 15,
     },
     categoryRow: { flexDirection: "row", gap: 10 },
     categoryBtn: {
@@ -504,9 +492,6 @@ const styles = (theme: any) =>
     },
     categoryBtnText: { fontSize: 13, fontWeight: "600", color: TEXT_SECONDARY },
     modalActions: { flexDirection: "row", gap: 10, marginTop: 4 },
-    modalBtn: {
-      flex: 1, paddingVertical: 14, borderRadius: 14,
-      alignItems: "center",
-    },
+    modalBtn: { flex: 1, paddingVertical: 14, borderRadius: 14, alignItems: "center" },
     modalBtnText: { fontWeight: "700", fontSize: 15 },
   });
