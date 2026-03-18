@@ -1,53 +1,153 @@
-> Edited for use in IDX on 07/09/12
+# 🎨 JuanjoQRS
 
-# Welcome to your Expo app 👋
+[![GitHub License](https://img.shields.io/badge/license-MIT-green)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/language-TypeScript-blue?logo=typescript)](https://www.typescriptlang.org/)
+[![Stars](https://img.shields.io/github/stars/JuanjoMedina23/juanjoqrs?style=flat&color=yellow)](https://github.com/JuanjoMedina23/juanjoqrs/stargazers)
+[![Forks](https://img.shields.io/github/forks/JuanjoMedina23/juanjoqrs?style=flat&color=orange)](https://github.com/JuanjoMedina23/juanjoqrs/network/members)
+[![Last Commit](https://img.shields.io/github/last-commit/JuanjoMedina23/juanjoqrs?style=flat)](https://github.com/JuanjoMedina23/juanjoqrs/commits)
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+---
 
-## Get started
+## 📋 Descripción
 
-#### Android
+**JuanjoQRS** es un proyecto innovador desarrollado con **TypeScript** que proporciona soluciones modernas y escalables. Este repositorio contiene código limpio, bien documentado y listo para producción.
 
-Android previews are defined as a `workspace.onStart` hook and started as a vscode task when the workspace is opened/started.
+### ✨ Características Principales
 
-Note, if you can't find the task, either:
-- Rebuild the environment (using command palette: `IDX: Rebuild Environment`), or
-- Run `npm run android -- --tunnel` command manually run android and see the output in your terminal. The device should pick up this new command and switch to start displaying the output from it.
+- 🚀 Rendimiento optimizado
+- 💻 Desarrollado en TypeScript
+- 📦 Fácil de instalar y usar
+- 🔧 Altamente configurable
+- ✅ Código bien estructurado
 
-In the output of this command/task, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🛠️ Instalación
 
-You'll also find options to open the app's developer menu, reload the app, and more.
+### Requisitos Previos
+- Node.js 16+ 
+- npm o yarn
 
-#### Web
-
-Web previews will be started and managred automatically. Use the toolbar to manually refresh.
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+### Pasos
 
 ```bash
-npm run reset-project
+# Clonar el repositorio
+git clone https://github.com/JuanjoMedina23/juanjoqrs.git
+
+# Navegar al directorio
+cd juanjoqrs
+
+# Instalar dependencias
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 🚀 Uso
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+# Iniciar el proyecto
+npm start
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+# Ejecutar en desarrollo
+npm run dev
 
-## Join the community
+# Compilar para producción
+npm run build
+```
 
-Join our community of developers creating universal apps.
+---
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+## 📁 Estructura del Proyecto
+
+```
+juanjoqrs/
+├── src/              # Código fuente
+├── dist/             # Código compilado
+├── package.json      # Dependencias del proyecto
+├── tsconfig.json     # Configuración de TypeScript
+└── README.md         # Este archivo
+```
+
+---
+
+## 🤝 Contribuyentes
+
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/JuanjoMedina23">
+        <img src="https://avatars.githubusercontent.com/u/230239358?v=4" width="80px" alt="JuanjoMedina23"/>
+        <br/>
+        <b>JuanjoMedina23</b>
+        <br/>
+        <sub>👨‍💻 Creador & Mantenedor</sub>
+        <br/>
+        <a href="https://github.com/JuanjoMedina23/juanjoqrs/commits?author=JuanjoMedina23">
+          <img src="https://img.shields.io/badge/Commits-13-blue" alt="Commits"/>
+        </a>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/seba-evng">
+        <img src="https://avatars.githubusercontent.com/u/230243363?v=4" width="80px" alt="seba-evng"/>
+        <br/>
+        <b>seba-evng</b>
+        <br/>
+        <sub>👥 Contribuyente Activo</sub>
+        <br/>
+        <a href="https://github.com/JuanjoMedina23/juanjoqrs/commits?author=seba-evng">
+          <img src="https://img.shields.io/badge/Commits-16-green" alt="Commits"/>
+        </a>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://github.com/Montechinos">
+        <img src="https://avatars.githubusercontent.com/u/205059630?v=4" width="80px" alt="Montechinos"/>
+        <br/>
+        <b>Montechinos</b>
+        <br/>
+        <sub>🙌 Colaborador</sub>
+        <br/>
+        <a href="https://github.com/JuanjoMedina23/juanjoqrs/commits?author=Montechinos">
+          <img src="https://img.shields.io/badge/Commits-10-orange" alt="Commits"/>
+        </a>
+      </a>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 📊 Estadísticas
+
+| Métrica | Valor |
+|---------|-------|
+| **Lenguaje** | TypeScript |
+| **Total Commits** | 39 |
+| **Contribuyentes** | 3 |
+| **Estado** | ✅ Activo |
+
+---
+
+## 📝 Licencia
+
+Este proyecto está bajo la licencia **MIT**. Consulta el archivo [LICENSE](LICENSE) para más detalles.
+
+---
+
+## 💬 Contacto y Soporte
+
+¿Tienes preguntas o sugerencias? 
+- 📧 Abre un [Issue](https://github.com/JuanjoMedina23/juanjoqrs/issues)
+- 🔗 Contribuye con un [Pull Request](https://github.com/JuanjoMedina23/juanjoqrs/pulls)
+
+---
+
+<div align="center">
+
+⭐ Si te gustó este proyecto, ¡no olvides dejar una estrella! ⭐
+
+Hecho con ❤️ por los contribuyentes del proyecto
+
+</div>
