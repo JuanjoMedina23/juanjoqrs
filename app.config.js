@@ -56,7 +56,12 @@ export default {
           cameraPermission: "Otorga permiso para que la app pueda usar la camara :)",
         },
       ],
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          sounds: ["./assets/sonido_verificacion.mp3"],
+        },
+      ],
       [
         "expo-location",
         {

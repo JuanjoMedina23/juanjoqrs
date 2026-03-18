@@ -15,10 +15,9 @@ import { createAuthStyles } from "./auth.styles";
 
 type Props = {
   onNavigateToLogin: () => void;
-  onRegisterSuccess?: () => void;
 };
 
-export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: Props) {
+export default function RegisterView({ onNavigateToLogin }: Props) {
   const { signUp } = useAuthContext();
   const { theme } = useTheme();
   const styles = createAuthStyles(theme);
@@ -28,7 +27,7 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [registered, setRegistered] = useState(false);
   const [focusedInput, setFocusedInput] = useState<string | null>(null);
 
   const handleRegister = async () => {
@@ -47,18 +46,45 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
     setError("");
     setLoading(true);
     try {
-      const session = await signUp(email.trim(), password);
-      if (!session) {
-        setSuccess("¡Revisa tu correo para verificar tu cuenta!");
-      } else {
-        onRegisterSuccess?.();
-      }
+      await signUp(email.trim(), password);
+      setRegistered(true);
     } catch (err: any) {
       setError(err.message || "Error al registrarse.");
     } finally {
       setLoading(false);
     }
   };
+
+  // Pantalla de éxito tras registro
+  if (registered) {
+    return (
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView contentContainerStyle={styles.container}>
+          <View style={styles.logoContainer}>
+            <Text style={styles.title}>Revisa tu correo 📬</Text>
+            <Text style={styles.subtitle}>
+              Te enviamos un enlace de verificación a{"\n"}
+              <Text style={{ fontWeight: "700" }}>{email}</Text>
+            </Text>
+          </View>
+          <View style={styles.card}>
+            <Text style={{ color: theme.text, fontSize: 15, textAlign: "center", lineHeight: 22 }}>
+              Toca el enlace del correo para verificar tu cuenta y acceder a JuanjoQRs.
+            </Text>
+          </View>
+          <TouchableOpacity onPress={onNavigateToLogin}>
+            <Text style={styles.switchText}>
+              ¿Ya verificaste?{" "}
+              <Text style={styles.switchLink}>Inicia sesión</Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
 
   return (
     <KeyboardAvoidingView
@@ -78,10 +104,7 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
           <View style={styles.inputWrapper}>
             <Text style={styles.label}>Correo electrónico</Text>
             <TextInput
-              style={[
-                styles.input,
-                focusedInput === "email" && styles.inputFocused,
-              ]}
+              style={[styles.input, focusedInput === "email" && styles.inputFocused]}
               placeholder="correo@ejemplo.com"
               placeholderTextColor={`${theme.text}60`}
               value={email}
@@ -96,10 +119,7 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
           <View style={styles.inputWrapper}>
             <Text style={styles.label}>Contraseña</Text>
             <TextInput
-              style={[
-                styles.input,
-                focusedInput === "password" && styles.inputFocused,
-              ]}
+              style={[styles.input, focusedInput === "password" && styles.inputFocused]}
               placeholder="Mínimo 6 caracteres"
               placeholderTextColor={`${theme.text}60`}
               value={password}
@@ -113,10 +133,7 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
           <View style={styles.inputWrapper}>
             <Text style={styles.label}>Confirmar contraseña</Text>
             <TextInput
-              style={[
-                styles.input,
-                focusedInput === "confirm" && styles.inputFocused,
-              ]}
+              style={[styles.input, focusedInput === "confirm" && styles.inputFocused]}
               placeholder="Repite tu contraseña"
               placeholderTextColor={`${theme.text}60`}
               value={confirmPassword}
@@ -128,7 +145,6 @@ export default function RegisterView({ onNavigateToLogin, onRegisterSuccess }: P
           </View>
 
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
-          {success ? <Text style={styles.successText}>{success}</Text> : null}
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}

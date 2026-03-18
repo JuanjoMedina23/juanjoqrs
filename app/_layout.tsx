@@ -76,12 +76,12 @@ export default function RootLayout() {
 
       if (Platform.OS === "android") {
         await Notifications.setNotificationChannelAsync("default", {
-          name: "default",
-          importance: Notifications.AndroidImportance.MAX,
-          sound: "default",
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: "#2196F3",
-        });
+        name: "default",
+        importance: Notifications.AndroidImportance.MAX,
+        sound: "sonido_verificacion.mp3",
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: "#2196F3",
+      });
 
         await NavigationBar.setVisibilityAsync("hidden");
         await NavigationBar.setBehaviorAsync("overlay-swipe");

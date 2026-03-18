@@ -31,7 +31,7 @@ async function sendTopUpNotification(amount: number, newBalance: number) {
     content: {
       title: "💰 Recarga exitosa",
       body: `Se han agregado $${amount.toFixed(2)} a su cuenta. Saldo actual: $${newBalance.toFixed(2)}`,
-      sound: true,
+      sound: "SonidoVerificacion.mp3",
     },
     trigger: null,
   });

@@ -13,3 +13,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: false,
   },
 });
+
+// Limpiar sesión inválida automáticamente
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "TOKEN_REFRESHED" && !session) {
+    AsyncStorage.multiRemove([
+      "supabase.auth.token",
+      "sb-" + supabaseUrl.split("//")[1].split(".")[0] + "-auth-token",
+    ]);
+    supabase.auth.signOut();
+  }
+});

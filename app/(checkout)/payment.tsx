@@ -40,7 +40,7 @@ async function sendPaymentNotification(amount: number, newBalance: number) {
     content: {
       title: "💳 Pago registrado",
       body: `Se ha registrado un pago de $${amount.toFixed(2)} desde su cuenta. Saldo restante: $${newBalance.toFixed(2)}`,
-      sound: true,
+      sound: "sonido_verificacion.mp3",
     },
     trigger: null,
   });

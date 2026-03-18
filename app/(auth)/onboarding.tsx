@@ -82,12 +82,11 @@ export default function OnboardingScreen() {
   }, []);
 
   const handleStart = () => {
-    router.replace("/");
+    router.replace("/(auth)/login");
   };
 
   return (
     <View style={s.container}>
-      {/* Header */}
       <Animated.View
         style={[s.header, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}
       >
@@ -100,7 +99,6 @@ export default function OnboardingScreen() {
         </Text>
       </Animated.View>
 
-      {/* Features */}
       <View style={s.features}>
         {FEATURES.map((f, i) => {
           const Icon = f.icon;
@@ -128,10 +126,9 @@ export default function OnboardingScreen() {
         })}
       </View>
 
-      {/* Botón */}
       <Animated.View style={{ opacity: fadeAnim, width: "100%" }}>
         <TouchableOpacity style={s.btn} onPress={handleStart}>
-          <Text style={s.btnText}>Comenzar</Text>
+          <Text style={s.btnText}>Ir al inicio de sesión</Text>
         </TouchableOpacity>
       </Animated.View>
     </View>
